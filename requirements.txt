@@ -1,0 +1,9 @@
+torch
+torchmetrics
+torchvision
+tqdm
+backpack
+curvlinops-for-pytorch
+backpack-for-pytorch
+asdfghjkl
+git+https://git@github.com/wiseodd/asdl@asdfghjkl
