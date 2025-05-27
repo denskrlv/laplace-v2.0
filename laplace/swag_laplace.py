@@ -68,7 +68,47 @@ class SWAGLaplace(BaseLaplace):
         self.swag_mean = None
         self.swag_covariance = None
 
-    def fit(
+    def fit(self, train_loader: DataLoader, *args, **kwargs):
+        """Fit the Laplace approximation.
+        
+        This overrides the BaseLaplace fit method with a compatible signature.
+        
+        Parameters
+        ----------
+        train_loader : DataLoader
+            Training data loader
+        *args, **kwargs : 
+            Additional arguments passed to train_swag method
+            
+        Returns
+        -------
+        self
+        """
+        # Extract optimizer and criterion if provided in kwargs
+        optimizer = kwargs.pop('optimizer', None)
+        criterion = kwargs.pop('criterion', None)
+        epochs = kwargs.pop('epochs', 100)
+        start_epoch = kwargs.pop('start_epoch', 0)
+        progress_bar = kwargs.pop('progress_bar', False)
+        
+        # If optimizer and criterion are provided, use SWAG training
+        if optimizer is not None and criterion is not None:
+            self.train_swag(
+                train_loader=train_loader,
+                optimizer=optimizer,
+                criterion=criterion,
+                epochs=epochs,
+                start_epoch=start_epoch,
+                progress_bar=progress_bar,
+                **kwargs
+            )
+        else:
+            # Fall back to standard Laplace fit method if no optimizer/criterion provided
+            super().fit(train_loader, *args, **kwargs)
+        
+        return self
+    
+    def train_swag(
         self,
         train_loader: DataLoader,
         optimizer: torch.optim.Optimizer,
@@ -76,8 +116,9 @@ class SWAGLaplace(BaseLaplace):
         epochs: int,
         start_epoch: int = 0,
         progress_bar: bool = False,
+        **kwargs
     ):
-        """Fit the model using SWAG and compute Laplace approximation.
+        """Train the model using SWAG and compute Laplace approximation.
         
         Parameters
         ----------

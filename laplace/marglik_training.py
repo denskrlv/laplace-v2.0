@@ -221,6 +221,7 @@ def marglik_training(
     )
 
     for epoch in pbar:
+        print(f"Epoch {epoch}/{n_epochs}", end="\r")
         epoch_loss = 0
         epoch_perf = 0
 
