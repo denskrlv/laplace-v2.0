@@ -32,6 +32,9 @@ class HessianStructure(str, Enum):
     GP = "gp"
     """Functional Laplace."""
 
+    SUBSPACE = "subspace"
+    """Subspace Laplace."""
+
 
 class Likelihood(str, Enum):
     """Valid options for `likelihood`."""
