@@ -4,6 +4,7 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import os
+import numpy as np
 from .mlp import MLP
 
 def train(model, device, loader, optimizer, criterion, epoch):
@@ -48,12 +49,19 @@ def test(model, device, loader, criterion):
     print(f"\nTest set: Avg loss: {loss:.4f}, Accuracy: {correct}/{len(loader.dataset)} ({accuracy:.2f}%)\n")
     return accuracy
 
+def set_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 def main():
     #Define hyperparameters
+    seeds = [6, 12, 37, 42, 113]
     batch_size = 128
     epochs = 20
     lr = 1e-3
-    model_path = os.path.join(os.path.dirname(__file__), "pretrained", "mlp_mnist.pth")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -71,20 +79,26 @@ def main():
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, pin_memory=True)
     test_loader = DataLoader(test_data, batch_size=256, shuffle=False, pin_memory=True)
 
-    # Model, loss, optimizer
-    model = MLP().to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    for seed in seeds:
+        print(f"\n=== Training with seed {seed} ===")
+        set_seed(seed)
 
-    # Training loop
-    for epoch in range(1, epochs + 1):
-        train(model, device, train_loader, optimizer, criterion, epoch)
-        test(model, device, test_loader, criterion)
+        # Model, loss, optimizer
+        model = MLP().to(device)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    # Save model
-    os.makedirs(os.path.dirname(model_path), exist_ok=True)
-    torch.save(model.state_dict(), model_path)
-    print(f"Saved trained model to {model_path}")
+        # Training loop
+        for epoch in range(1, epochs + 1):
+            train(model, device, train_loader, optimizer, criterion, epoch)
+            test(model, device, test_loader, criterion)
+
+        # Save model
+        model_dir = os.path.join(os.path.dirname(__file__), "pretrained")
+        os.makedirs(model_dir, exist_ok=True)
+        model_path = os.path.join(model_dir, f"mlp_mnist_seed{seed}.pth")
+        torch.save(model.state_dict(), model_path)
+        print(f"Saved trained model to {model_path}")
 
 if __name__ == '__main__':
     main()

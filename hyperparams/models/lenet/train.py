@@ -5,6 +5,7 @@ import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 import os
+import numpy as np
 from  .lenet5 import LeNet5
 
 def train(model, device, train_loader, optimizer, criterion, epoch):
@@ -51,15 +52,22 @@ def test(model, device, test_loader, criterion):
     print(f"\nTest set: Average loss: {test_loss:.4f}, Accuracy: {correct}/{len(test_loader.dataset)} ({accuracy:.2f}%)\n")
     return accuracy
 
+def set_seed(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    np.random.seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 def main():
     #Define hyperparameters
+    seeds = [6, 12, 37, 42, 113]
     batch_size = 128
     test_batch_size = 256
     epochs = 100
     lr = 0.1
     weight_decay = 5e-4
-    model_path = ("pretrained/lenet_mnist.pth")
+    model_path = ("pretrained/lenet_mnist_seed{}.pth")
 
     use_cuda = torch.cuda.is_available()
     device = torch.device("cuda" if use_cuda else "cpu")
@@ -78,22 +86,27 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4, pin_memory=True)
     test_loader = DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False, num_workers=4, pin_memory=True)
 
-    # Model, loss, optimizer
-    model = LeNet5().to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    for seed in seeds:
+        print(f"\n=== Training with seed {seed} ===")
+        set_seed(seed)
 
-    # Training loop
-    for epoch in range(1, epochs + 1):
-        train(model, device, train_loader, optimizer, criterion, epoch)
-        test(model, device, test_loader, criterion)
-        scheduler.step()
+        # Model, loss, optimizer
+        model = LeNet5().to(device)
+        criterion = nn.CrossEntropyLoss()
+        optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
 
-    # Save model
-    os.makedirs(os.path.dirname(model_path), exist_ok=True)
-    torch.save(model.state_dict(), model_path)
-    print(f"Saved trained model to {model_path}")
+        # Training loop
+        for epoch in range(1, epochs + 1):
+            train(model, device, train_loader, optimizer, criterion, epoch)
+            test(model, device, test_loader, criterion)
+            scheduler.step()
+
+        # Save model
+        path = model_path.format(seed)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        torch.save(model.state_dict(), path)
+        print(f"Saved trained model to {path}")
 
 if __name__ == '__main__':
     main()
