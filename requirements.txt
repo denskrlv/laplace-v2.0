@@ -3,6 +3,8 @@ numpy
 torchmetrics
 torchvision
 tqdm
+seaborn
+matplotlib
 backpack
 curvlinops-for-pytorch
 backpack-for-pytorch
