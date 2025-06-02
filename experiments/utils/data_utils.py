@@ -4,7 +4,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import DataLoader, random_split
 import torch
 
-def get_mnist_loaders(batch_size=128, test_batch_size=1000, val_split=10000, seed=42):
+def get_mnist_loaders(batch_size=128, test_batch_size=1000, val_split=10000):
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
