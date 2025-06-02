@@ -5,9 +5,9 @@ from typing import Type
 import torch
 from torch import nn
 
-from laplace.baselaplace import DiagLaplace, FullLaplace, Likelihood, ParametricLaplace
-from laplace.curvature import EFInterface, GGNInterface
-from laplace.curvature.curvature import CurvatureInterface
+from laplace2.baselaplace import DiagLaplace, FullLaplace, Likelihood, ParametricLaplace
+from laplace2.curvature import EFInterface, GGNInterface
+from laplace2.curvature.curvature import CurvatureInterface
 
 __all__ = ["SubnetLaplace", "FullSubnetLaplace", "DiagSubnetLaplace"]
 
@@ -66,7 +66,7 @@ class SubnetLaplace(ParametricLaplace):
     temperature : float, default=1
         temperature of the likelihood; lower temperature leads to more
         concentrated posterior and vice versa.
-    backend : subclasses of `laplace.curvature.{GGNInterface,EFInterface}`
+    backend : subclasses of `laplace2.curvature.{GGNInterface,EFInterface}`
         backend for access to curvature/Hessian approximations
     backend_kwargs : dict, default=None
         arguments passed to the backend on initialization, for example to

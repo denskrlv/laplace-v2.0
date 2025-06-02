@@ -9,18 +9,18 @@ from torch import nn
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from torch.utils.data import DataLoader
 
-from laplace.baselaplace import (
+from laplace2.baselaplace import (
     DiagLaplace,
     FullLaplace,
     FunctionalLaplace,
     KronLaplace,
     ParametricLaplace,
 )
-from laplace.curvature import BackPackGGN
-from laplace.curvature.curvature import CurvatureInterface
-from laplace.utils import FeatureExtractor, Kron
-from laplace.utils.enums import Likelihood
-from laplace.utils.feature_extractor import FeatureReduction
+from laplace2.curvature import BackPackGGN
+from laplace2.curvature.curvature import CurvatureInterface
+from laplace2.utils import FeatureExtractor, Kron
+from laplace2.utils.enums import Likelihood
+from laplace2.utils.feature_extractor import FeatureReduction
 
 __all__ = [
     "LLLaplace",
@@ -89,7 +89,7 @@ class LLLaplace(ParametricLaplace):
         The dictionary key under which the target tensor `y` is stored. Only has effect
         when the model takes a `MutableMapping` as the input. Useful for Huggingface
         LLM models.
-    backend : subclasses of `laplace.curvature.CurvatureInterface`
+    backend : subclasses of `laplace2.curvature.CurvatureInterface`
         backend for access to curvature/Hessian approximations
     last_layer_name: str, default=None
         name of the model's last layer, if None it will be determined automatically
@@ -386,7 +386,7 @@ class KronLLLaplace(LLLaplace, KronLaplace):
     Mathematically, we have for the last parameter group, i.e., torch.nn.Linear,
     that \\P\\approx Q \\otimes H\\.
     See `KronLaplace`, `LLLaplace`, and `BaseLaplace` for the full interface and see
-    `laplace.utils.matrix.Kron` and `laplace.utils.matrix.KronDecomposed` for the structure of
+    `laplace2.utils.matrix.Kron` and `laplace2.utils.matrix.KronDecomposed` for the structure of
     the Kronecker factors. `Kron` is used to aggregate factors by summing up and
     `KronDecomposed` is used to add the prior, a Hessian factor (e.g. temperature),
     and computing posterior covariances, marginal likelihood, etc.

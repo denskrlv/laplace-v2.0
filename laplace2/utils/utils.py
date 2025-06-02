@@ -15,8 +15,8 @@ from torch.nn.utils import parameters_to_vector
 from torch.utils.data import DataLoader, Sampler
 from torchmetrics import Metric
 
-import laplace
-from laplace.utils.enums import LinkApprox, PredType, PriorStructure
+import laplace2
+from laplace2.utils.enums import LinkApprox, PredType, PriorStructure
 
 __all__ = [
     "get_nll",
@@ -38,7 +38,7 @@ def get_nll(out_dist: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
 
 @torch.no_grad()
 def validate(
-    laplace: laplace.baselaplace.BaseLaplace,
+    laplace: laplace2.baselaplace.BaseLaplace,
     val_loader: DataLoader,
     loss: torchmetrics.Metric
     | Callable[[torch.Tensor, torch.Tensor], torch.Tensor]

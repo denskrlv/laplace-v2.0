@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import torch
 
-from laplace.baselaplace import BaseLaplace
-from laplace.utils.enums import (
+from laplace2.baselaplace import BaseLaplace
+from laplace2.utils.enums import (
     HessianStructure,
     Likelihood,
     SubsetOfWeights,
@@ -31,7 +31,7 @@ def Laplace(
         we are not actually doing any Hessian approximation, the inference is instead done in the functional space)
     Returns
     -------
-    laplace : BaseLaplace
+    laplace2 : BaseLaplace
         chosen subclass of BaseLaplace instantiated with additional arguments
     """
     if subset_of_weights == "subnetwork" and hessian_structure not in ["full", "diag"]:

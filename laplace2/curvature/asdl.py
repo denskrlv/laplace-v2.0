@@ -19,8 +19,8 @@ from asdl.matrices import (
 )
 from torch import nn
 
-from laplace.curvature import CurvatureInterface, EFInterface, GGNInterface
-from laplace.utils import Kron, Likelihood, _is_batchnorm
+from laplace2.curvature import CurvatureInterface, EFInterface, GGNInterface
+from laplace2.utils import Kron, Likelihood, _is_batchnorm
 
 EPS = 1e-6
 

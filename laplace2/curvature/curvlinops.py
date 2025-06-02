@@ -15,8 +15,8 @@ from curvlinops import (
 from curvlinops._base import _LinearOperator
 from torch import nn
 
-from laplace.curvature import CurvatureInterface, EFInterface, GGNInterface
-from laplace.utils import Kron, Likelihood
+from laplace2.curvature import CurvatureInterface, EFInterface, GGNInterface
+from laplace2.utils import Kron, Likelihood
 
 
 class CurvlinopsInterface(CurvatureInterface):

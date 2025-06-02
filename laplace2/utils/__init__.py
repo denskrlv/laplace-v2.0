@@ -1,4 +1,4 @@
-from laplace.utils.enums import (
+from laplace2.utils.enums import (
     HessianStructure,
     Likelihood,
     LinkApprox,
@@ -7,10 +7,10 @@ from laplace.utils.enums import (
     SubsetOfWeights,
     TuningMethod,
 )
-from laplace.utils.feature_extractor import FeatureExtractor
-from laplace.utils.matrix import Kron, KronDecomposed
-from laplace.utils.metrics import RunningNLLMetric
-from laplace.utils.subnetmask import (
+from laplace2.utils.feature_extractor import FeatureExtractor
+from laplace2.utils.matrix import Kron, KronDecomposed
+from laplace2.utils.metrics import RunningNLLMetric
+from laplace2.utils.subnetmask import (
     LargestMagnitudeSubnetMask,
     LargestVarianceDiagLaplaceSubnetMask,
     LargestVarianceSWAGSubnetMask,
@@ -20,8 +20,8 @@ from laplace.utils.subnetmask import (
     RandomSubnetMask,
     SubnetMask,
 )
-from laplace.utils.swag import fit_diagonal_swag_var
-from laplace.utils.utils import (
+from laplace2.utils.swag import fit_diagonal_swag_var
+from laplace2.utils.utils import (
     SoDSampler,
     _is_batchnorm,
     _is_valid_scalar,

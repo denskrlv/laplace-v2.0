@@ -15,22 +15,22 @@ from torch.linalg import LinAlgError
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from torch.utils.data import DataLoader
 
-from laplace.curvature.asdfghjkl import AsdfghjklHessian
-from laplace.curvature.asdl import AsdlGGN
-from laplace.curvature.backpack import BackPackGGN
-from laplace.curvature.curvature import CurvatureInterface
-from laplace.curvature.curvlinops import CurvlinopsEF, CurvlinopsGGN
-from laplace.utils import SoDSampler
-from laplace.utils.enums import (
+from laplace2.curvature.asdfghjkl import AsdfghjklHessian
+from laplace2.curvature.asdl import AsdlGGN
+from laplace2.curvature.backpack import BackPackGGN
+from laplace2.curvature.curvature import CurvatureInterface
+from laplace2.curvature.curvlinops import CurvlinopsEF, CurvlinopsGGN
+from laplace2.utils import SoDSampler
+from laplace2.utils.enums import (
     Likelihood,
     LinkApprox,
     PredType,
     PriorStructure,
     TuningMethod,
 )
-from laplace.utils.matrix import Kron, KronDecomposed
-from laplace.utils.metrics import RunningNLLMetric
-from laplace.utils.utils import (
+from laplace2.utils.matrix import Kron, KronDecomposed
+from laplace2.utils.metrics import RunningNLLMetric
+from laplace2.utils.utils import (
     fix_prior_prec_structure,
     invsqrt_precision,
     normal_samples,
@@ -82,7 +82,7 @@ class BaseLaplace:
         The dictionary key under which the target tensor `y` is stored. Only has effect
         when the model takes a `MutableMapping` as the input. Useful for Huggingface
         LLM models.
-    backend : subclasses of `laplace.curvature.CurvatureInterface`
+    backend : subclasses of `laplace2.curvature.CurvatureInterface`
         backend for access to curvature/Hessian approximations. Defaults to CurvlinopsGGN if None.
     backend_kwargs : dict, default=None
         arguments passed to the backend on initialization, for example to
@@ -1709,7 +1709,7 @@ class KronLaplace(ParametricLaplace):
     Mathematically, we have for each parameter group, e.g., torch.nn.Module,
     that \\P\\approx Q \\otimes H\\.
     See `BaseLaplace` for the full interface and see
-    `laplace.utils.matrix.Kron` and `laplace.utils.matrix.KronDecomposed` for the structure of
+    `laplace2.utils.matrix.Kron` and `laplace2.utils.matrix.KronDecomposed` for the structure of
     the Kronecker factors. `Kron` is used to aggregate factors by summing up and
     `KronDecomposed` is used to add the prior, a Hessian factor (e.g. temperature),
     and computing posterior covariances, marginal likelihood, etc.
@@ -2187,7 +2187,7 @@ class FunctionalLaplace(BaseLaplace):
         The dictionary key under which the target tensor `y` is stored. Only has effect
         when the model takes a `MutableMapping` as the input. Useful for Huggingface
         LLM models.
-    backend : subclasses of `laplace.curvature.CurvatureInterface`
+    backend : subclasses of `laplace2.curvature.CurvatureInterface`
         backend for access to curvature/Hessian approximations. Defaults to CurvlinopsGGN if None.
     backend_kwargs : dict, default=None
         arguments passed to the backend on initialization, for example to

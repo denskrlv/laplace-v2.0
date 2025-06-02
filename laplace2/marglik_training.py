@@ -17,11 +17,11 @@ from torch.optim.lr_scheduler import LRScheduler
 from torch.types import Number
 from torch.utils.data import DataLoader
 
-from laplace import Laplace
-from laplace.baselaplace import BaseLaplace
-from laplace.curvature import AsdlGGN
-from laplace.curvature.curvature import CurvatureInterface
-from laplace.utils import (
+from laplace2 import Laplace
+from laplace2.baselaplace import BaseLaplace
+from laplace2.curvature import AsdlGGN
+from laplace2.curvature.curvature import CurvatureInterface
+from laplace2.utils import (
     HessianStructure,
     Likelihood,
     PriorStructure,
@@ -278,7 +278,7 @@ def marglik_training(
             continue
 
         # optimizer hyperparameters by differentiating marglik
-        # 1. fit laplace approximation
+        # 1. fit laplace2 approximation
         if likelihood == Likelihood.CLASSIFICATION:
             sigma_noise = 1
         else:

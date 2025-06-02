@@ -8,10 +8,10 @@ from torch.nn import CrossEntropyLoss, MSELoss
 from torch.nn.utils import parameters_to_vector
 from torch.utils.data import DataLoader
 
-import laplace
-from laplace.utils.enums import Likelihood
-from laplace.utils.feature_extractor import FeatureExtractor
-from laplace.utils.swag import fit_diagonal_swag_var
+import laplace2
+from laplace2.utils.enums import Likelihood
+from laplace2.utils.feature_extractor import FeatureExtractor
+from laplace2.utils.swag import fit_diagonal_swag_var
 
 __all__ = [
     "SubnetMask",
@@ -236,10 +236,10 @@ class LargestVarianceDiagLaplaceSubnetMask(ScoreBasedSubnetMask):
         self,
         model: nn.Module,
         n_params_subnet: int,
-        diag_laplace_model: laplace.baselaplace.DiagLaplace,
+        diag_laplace_model: laplace2.baselaplace.DiagLaplace,
     ):
         super().__init__(model, n_params_subnet)
-        self.diag_laplace_model: laplace.baselaplace.DiagLaplace = diag_laplace_model
+        self.diag_laplace_model: laplace2.baselaplace.DiagLaplace = diag_laplace_model
 
     def compute_param_scores(self, train_loader: DataLoader) -> torch.Tensor:
         if train_loader is None:

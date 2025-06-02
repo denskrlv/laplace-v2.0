@@ -8,7 +8,7 @@ import opt_einsum as oe
 import torch
 from torch import nn
 
-from laplace.utils.utils import _is_valid_scalar, block_diag, kron, symeig
+from laplace2.utils.utils import _is_valid_scalar, block_diag, kron, symeig
 
 __all__ = ["Kron", "KronDecomposed"]
 

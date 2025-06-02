@@ -24,9 +24,9 @@ if find_spec("asdfghjkl") is not None:
 from torch import nn
 from torch.utils.data import DataLoader
 
-from laplace.curvature import CurvatureInterface, EFInterface, GGNInterface
-from laplace.utils import Kron, _is_batchnorm
-from laplace.utils.enums import Likelihood
+from laplace2.curvature import CurvatureInterface, EFInterface, GGNInterface
+from laplace2.utils import Kron, _is_batchnorm
+from laplace2.utils.enums import Likelihood
 
 EPS = 1e-6
 

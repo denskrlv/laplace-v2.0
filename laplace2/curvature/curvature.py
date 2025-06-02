@@ -6,7 +6,7 @@ import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss, MSELoss
 
-from laplace.utils import Kron, Likelihood
+from laplace2.utils import Kron, Likelihood
 
 
 class CurvatureInterface:

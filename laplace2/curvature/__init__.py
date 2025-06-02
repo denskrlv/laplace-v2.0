@@ -1,20 +1,20 @@
 import logging
 from importlib.util import find_spec
 
-from laplace.curvature.curvature import CurvatureInterface, EFInterface, GGNInterface
+from laplace2.curvature.curvature import CurvatureInterface, EFInterface, GGNInterface
 
 try:
-    from laplace.curvature.backpack import BackPackEF, BackPackGGN, BackPackInterface
+    from laplace2.curvature.backpack import BackPackEF, BackPackGGN, BackPackInterface
 except ModuleNotFoundError:
     logging.info("Backpack backend not available.")
 
 try:
-    from laplace.curvature.asdl import AsdlEF, AsdlGGN, AsdlHessian, AsdlInterface
+    from laplace2.curvature.asdl import AsdlEF, AsdlGGN, AsdlHessian, AsdlInterface
 except ModuleNotFoundError:
     logging.info("ASDL backend not available.")
 
 try:
-    from laplace.curvature.curvlinops import (
+    from laplace2.curvature.curvlinops import (
         CurvlinopsEF,
         CurvlinopsGGN,
         CurvlinopsHessian,
@@ -48,7 +48,7 @@ if find_spec("asdfghjkl") is None:
     )
 else:
     try:
-        from laplace.curvature.asdfghjkl import (
+        from laplace2.curvature.asdfghjkl import (
             AsdfghjklEF,  # noqa: F401
             AsdfghjklGGN,  # noqa: F401
             AsdfghjklHessian,  # noqa: F401

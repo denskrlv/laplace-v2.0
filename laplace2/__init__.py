@@ -7,7 +7,7 @@
 .. include:: ../examples/reward_modeling_example.md
 """
 
-from laplace.baselaplace import (
+from laplace2.baselaplace import (
     BaseLaplace,
     DiagLaplace,
     FullLaplace,
@@ -16,17 +16,17 @@ from laplace.baselaplace import (
     LowRankLaplace,
     ParametricLaplace,
 )
-from laplace.laplace import Laplace
-from laplace.lllaplace import (
+from laplace2.laplace import Laplace
+from laplace2.lllaplace import (
     DiagLLLaplace,
     FullLLLaplace,
     FunctionalLLLaplace,
     KronLLLaplace,
     LLLaplace,
 )
-from laplace.marglik_training import marglik_training
-from laplace.subnetlaplace import DiagSubnetLaplace, FullSubnetLaplace, SubnetLaplace
-from laplace.utils.enums import (
+from laplace2.marglik_training import marglik_training
+from laplace2.subnetlaplace import DiagSubnetLaplace, FullSubnetLaplace, SubnetLaplace
+from laplace2.utils.enums import (
     HessianStructure,
     Likelihood,
     LinkApprox,
