@@ -7,12 +7,24 @@ from torch.utils.data import DataLoader # For type hinting
 
 # Assuming laplace2-v2.0 is installed or in PYTHONPATH
 from laplace import Laplace
+from laplace.utils.metrics import RunningNLLMetric
 
 # --- IMPORT FROM YOUR NEW STRUCTURE ---
 from models.lenet_model import LeNet
 from utils.data_utils import get_mnist_loaders
 from utils.training_utils import train_map_model
 from utils.evaluation_utils import evaluate_model
+
+import numpy as np
+import torch.backends.cudnn as cudnn
+
+def set_seed(seed):
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        cudnn.deterministic = True
+        cudnn.benchmark = False
 
 if __name__ == '__main__':
     # Set the device to GPU if available, otherwise mps otherwise CPU
@@ -35,7 +47,7 @@ if __name__ == '__main__':
     # train_map_model is now imported
     map_model_instance = train_map_model(
         map_model_instance, train_loader, device,
-        lr=MAP_LR, epochs=MAP_EPOCHS, weight_decay=MAP_WEIGHT_DECAY
+        lr=MAP_LR, epochs=100, weight_decay=MAP_WEIGHT_DECAY
     )
 
     # evaluate_model is now imported
@@ -47,25 +59,27 @@ if __name__ == '__main__':
         map_model_instance,
         'classification',
         subset_of_weights='last_layer',
-        hessian_structure='diag',
+        hessian_structure='kron',
         prior_precision=LA_PRIOR_PRECISION
     )
     la_model.fit(train_loader)
     print("--- Laplace Model Fitting Finished ---")
 
-    print("\n--- Tuning Laplace Prior Precision ---")
-    # Ensure your val_loader is passed correctly
+    print("\n--- Tuning Laplace Prior Precision (Gridsearch) ---")
+
+    loss_for_gridsearch = RunningNLLMetric().to(device)
+
     la_model.optimize_prior_precision(
-        method='marglik',  # Or 'gridsearch' if you prefer and provide a loss for CV
+        method='gridsearch',
         val_loader=val_loader,
-        pred_type='glm',  # GLM predictive is usually used for this
+        loss=loss_for_gridsearch,  # Pass the instantiated metric or callable
+        pred_type='glm',
         link_approx='probit',
-        verbose=True
-    )
+        verbose=True)
 
     # 4. Evaluate Laplace Model
-    la_results = evaluate_model(la_model, test_loader, device, model_name="Laplace on Imported LeNet (LL KFAC)", num_classes=10)
-
+    la_results = evaluate_model(la_model, test_loader, device,
+                                model_name="Laplace on Imported LeNet (LL Diag, Tuned Prior)", num_classes=10)
     print("\n--- Summary ---")
     print(f"MAP (Imported LeNet): Acc={map_results['accuracy']:.4f}, NLL={map_results['nll']:.4f}, ECE_L1={map_results['ece_l1']:.4f}")
-    print(f"LA on Imported LeNet (LL KFAC): Acc={la_results['accuracy']:.4f}, NLL={la_results['nll']:.4f}, ECE_L1={la_results['ece_l1']:.4f}")
+    print(f"LA on Imported LeNet (LL Diag): Acc={la_results['accuracy']:.4f}, NLL={la_results['nll']:.4f}, ECE_L1={la_results['ece_l1']:.4f}")
