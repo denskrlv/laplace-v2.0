@@ -970,6 +970,7 @@ class ParametricLaplace(BaseLaplace):
             if isinstance(data, MutableMapping):  # To support Huggingface dataset
                 X, y = data, data[self.dict_key_y].to(self._device)
             else:
+                print('correct data')
                 X, y = data
                 X, y = X.to(self._device), y.to(self._device)
 
@@ -980,6 +981,7 @@ class ParametricLaplace(BaseLaplace):
                 )
 
             self.model.zero_grad()
+            print('zero grad')
             loss_batch, H_batch = self._curv_closure(X, y, N=N)
             self.loss += loss_batch
             self.H += H_batch

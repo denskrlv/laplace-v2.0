@@ -11,7 +11,7 @@ def test(components, test_loader, prediction_mode, pred_type='glm', n_samples=10
          likelihood='classification', sigma_noise=None):
 
     temperature_scaling_model = None
-    if prediction_mode in ['map', 'laplace', 'bbb', 'csghmc']:
+    if prediction_mode in ['map', 'laplace', 'subspace', 'bbb', 'csghmc']:
         model = components[0]
         if prediction_mode in ['map', 'bbb']:
             if prediction_mode == 'map' and isinstance(model, tuple):
@@ -40,7 +40,7 @@ def test(components, test_loader, prediction_mode, pred_type='glm', n_samples=10
         x, y = data[0].to(device), data[1].to(device)
         all_y_true.append(y.cpu())
 
-        if prediction_mode in ['ensemble', 'mola', 'multi-swag']:
+        if prediction_mode in ['ensemble', 'mola',  'multi-swag']:
             # set uniform mixture weights
             K = len(components)
             pi = torch.ones(K, device=device) / K
@@ -52,7 +52,7 @@ def test(components, test_loader, prediction_mode, pred_type='glm', n_samples=10
                 n_samples=n_samples,
                 likelihood=likelihood)
 
-        elif prediction_mode == 'laplace':
+        elif prediction_mode in ['laplace, subspace']:
             y_prob = model(
                 x, pred_type=pred_type, link_approx=link_approx, n_samples=n_samples)
 

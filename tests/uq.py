@@ -105,6 +105,20 @@ def fit_models(args, train_loader, val_loader, device):
             temperature_scaling_model.fit(all_y_prob.numpy(), all_y_true.numpy())
             model = (model, temperature_scaling_model)
 
+        elif args.method == 'subspace':
+            print("Fitting Subspace Laplace...")
+            from laplace.subspace_laplace import SubspaceLaplace
+            model = SubspaceLaplace(
+                model,
+                likelihood=args.likelihood,
+                subspace_dim=args.subspace_dim,
+                subspace_method=args.subspace_method,
+                n_eig_samples=args.eig_steps,
+                prior_precision=args.prior_precision,
+                temperature=args.temperature,
+            )
+            model.fit(train_loader)
+
         if args.likelihood == 'regression' and args.sigma_noise is None:
             print("Optimizing noise standard deviation on validation data...")
             args.sigma_noise = wu.optimize_noise_standard_deviation(model, val_loader, device)
@@ -200,13 +214,22 @@ if __name__ == "__main__":
     parser.add_argument('--method', type=str,
                         
                         choices=['map', 'ensemble',
-                                 'laplace', 'mola',
+                                 'laplace', 'mola', 'subspace',
                                  'swag', 'multi-swag',
                                  'bbb', 'csghmc'],
                         default='laplace',
                         help='name of method to use')
     parser.add_argument('--seed', type=int, default=1,
                         help='random seed')
+    
+    parser.add_argument('--subspace_dim', type=int, default=4,
+                        help='dimension of Subspace Laplace basis')
+    parser.add_argument('--subspace_method',
+                        choices=['hessian_eig', 'pca_sgd', 'random'],
+                        default='hessian_eig',
+                        help='how the subspace basis is built')
+    parser.add_argument('--eig_steps', type=int, default=100,
+                        help='power-iteration steps for hessian_eig')
 
     parser.add_argument('--pred_type', type=str,
                         choices=['nn', 'glm'],
@@ -267,9 +290,9 @@ if __name__ == "__main__":
     parser.add_argument('--no_dropout', action='store_true', help='only for WRN-fixup.')
     parser.add_argument('--data_parallel', action='store_true',
                         help='if True, use torch.nn.DataParallel(model)')
-    parser.add_argument('--batch_size', type=int, default=512,
+    parser.add_argument('--batch_size', type=int, default=10,
                         help='batch size for testing')
-    parser.add_argument('--val_set_size', type=int, default=2000,
+    parser.add_argument('--val_set_size', type=int, default=20,
                         help='size of validation set (taken from test set)')
     parser.add_argument('--use_temperature_scaling', default=False,
                         help='if True, calibrate model using temperature scaling')
