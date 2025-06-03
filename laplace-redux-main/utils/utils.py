@@ -87,7 +87,8 @@ def get_model(model_class, no_dropout=False, device=None):
     elif model_class == 'LeNet-BBB-flipout':
         model = lenet_bbb.LeNetBBB(estimator='flipout')
     elif model_class == 'LeNet-CSGHMC':
-        model = [lenet.LeNet() for _ in range(12)]  # 12 samples in CSGHMC
+        model = [lenet.LeNet().to(device) for _ in range(12)]  # 12 samples in CSGHMC
+        return model
     elif model_class == 'WRN16-4':
         model = wrn.WideResNet(16, 4, 10, dropRate=0.3)
     elif model_class == 'WRN16-4-fixup':
