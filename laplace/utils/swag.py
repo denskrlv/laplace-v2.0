@@ -4,6 +4,7 @@ import logging
 from copy import deepcopy
 from typing import Optional, Tuple
 
+from tqdm import tqdm
 import torch
 import torch.nn as nn
 from torch.optim import Optimizer
@@ -46,6 +47,7 @@ class SWAG:
         swa_lr: float = 0.05,
         max_num_models: int = 20,
         var_clamp: float = 1e-30,
+        device=None,
     ):
         self.model = model
         self.n_models = n_models
@@ -54,6 +56,8 @@ class SWAG:
         self.swa_lr = swa_lr
         self.max_num_models = max_num_models
         self.var_clamp = var_clamp
+        self.device = device if device is not None else next(model.parameters()).device
+        self.model = self.model.to(self.device)
 
         # Initialize storage for model parameters
         self._init_storage()
@@ -192,13 +196,36 @@ class SWAG:
         """
         self.model.train()
         
-        for epoch in range(start_epoch, epochs):
+        # Import tqdm if progress bar is requested
+        if progress_bar:
+            try:
+                from tqdm import tqdm
+                epoch_iter = tqdm(range(start_epoch, epochs), desc="Epochs")
+            except ImportError:
+                print("Warning: tqdm not installed. Progress bar disabled.")
+                progress_bar = False
+                epoch_iter = range(start_epoch, epochs)
+        else:
+            epoch_iter = range(start_epoch, epochs)
+        
+        for epoch in epoch_iter:
+            running_loss = 0.0
+            
+            # Process batches without inner progress bar
             for batch_idx, (data, target) in enumerate(train_loader):
+                data, target = data.to(self.device), target.to(self.device)
                 optimizer.zero_grad()
                 output = self.model(data)
                 loss = criterion(output, target)
                 loss.backward()
                 optimizer.step()
+                
+                # Update running loss
+                running_loss += loss.item()
+                
+            # Update epoch progress bar with loss info if using tqdm
+            if progress_bar:
+                epoch_iter.set_postfix({"loss": f"{running_loss/len(train_loader):.4f}"})
             
             # Collect model if conditions are met
             self.collect_model(epoch)
@@ -207,6 +234,10 @@ class SWAG:
             if epoch >= self.start_epoch:
                 for param_group in optimizer.param_groups:
                     param_group['lr'] = self.swa_lr
+            
+            # Print epoch summary if not using progress bar
+            if not progress_bar:
+                print(f"Epoch {epoch+1}/{epochs}, Loss: {running_loss/len(train_loader):.4f}")
 
 def fit_diagonal_swag_var(model: nn.Module, train_loader: DataLoader, n_epochs: int = 100) -> list[torch.Tensor]:
     """Fit diagonal SWAG variance to a model.

@@ -45,9 +45,12 @@ class SWAGLaplace(BaseLaplace):
         swa_lr: float = 0.05,
         max_num_models: int = 20,
         var_clamp: float = 1e-30,
+        device = None,
         **kwargs
     ):
         super().__init__(model, likelihood, **kwargs)
+
+        self.device = device if device is not None else next(model.parameters()).device
         
         # Initialize SWAG
         self.swag = SWAG(
@@ -57,7 +60,8 @@ class SWAGLaplace(BaseLaplace):
             swa_freq=swa_freq,
             swa_lr=swa_lr,
             max_num_models=max_num_models,
-            var_clamp=var_clamp
+            var_clamp=var_clamp,
+            device=self.device
         )
         
         # Initialize storage for SWAG statistics
@@ -67,6 +71,17 @@ class SWAGLaplace(BaseLaplace):
         """Initialize storage for SWAG statistics."""
         self.swag_mean = None
         self.swag_covariance = None
+
+    def _init_H(self):
+        """Initialize Hessian approximation.
+        
+        For SWAG-Laplace, we use a diagonal Hessian approximation
+        which will be updated during model training.
+        """
+        n_params = sum(p.numel() for p in self.model.parameters())
+        self.H = torch.zeros(
+            n_params, device=self._device, dtype=self._dtype
+        )
 
     def fit(self, train_loader: DataLoader, *args, **kwargs):
         """Fit the Laplace approximation.
@@ -227,23 +242,13 @@ class SWAGLaplace(BaseLaplace):
             param.data += correction
 
     def evaluate(self, data_loader: DataLoader) -> float:
-        """Evaluate the model's accuracy on the given data loader.
-        
-        Parameters
-        ----------
-        data_loader : DataLoader
-            Data loader containing the evaluation data
-            
-        Returns
-        -------
-        float
-            Accuracy percentage
-        """
+        """Evaluate the model's accuracy on the given data loader."""
         self.model.eval()
         correct = 0
         total = 0
         with torch.no_grad():
             for inputs, targets in data_loader:
+                inputs, targets = inputs.to(self.device), targets.to(self.device)
                 outputs = self.model(inputs)
                 _, predicted = outputs.max(1)
                 total += targets.size(0)

@@ -55,6 +55,7 @@ def marglik_training(
     enable_backprop: bool = False,
     dict_key_x: str = "input_ids",
     dict_key_y: str = "labels",
+    device: torch.device | None = None,
 ) -> tuple[BaseLaplace, nn.Module, list[Number], list[Number]]:
     """Marginal-likelihood based training (Algorithm 1 in [1]).
     Optimize model parameters and hyperparameters jointly.
@@ -158,6 +159,10 @@ def marglik_training(
         warnings.warn("Weight decay is handled and optimized. Will be set to 0.")
         optimizer_kwargs["weight_decay"] = 0.0
 
+    if device is None:
+        device = next(model.parameters()).device
+    model = model.to(device)
+
     # get device, data set size N, number of layers H, number of parameters P
     p = next(model.parameters())
     device, dtype = p.device, p.dtype
@@ -174,6 +179,7 @@ def marglik_training(
         log_prior_prec_init, prior_structure, H, P, device, dtype
     )
     log_prior_prec.requires_grad = True
+    log_prior_prec = log_prior_prec.to(device)
     hyperparameters.append(log_prior_prec)
 
     # set up loss (and observation noise hyperparam)
