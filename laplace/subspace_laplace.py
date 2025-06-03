@@ -226,7 +226,7 @@ class SubspaceLaplace(ParametricLaplace):
         y: torch.Tensor,
         v: torch.Tensor,
     ) -> tuple[torch.Tensor, None]:
-        if hasattr(self.backend, "hvp")
+        if hasattr(self.backend, "hvp"):
             return self.backend.hvp(X, y, v), None
 
         # forward + scalar loss
