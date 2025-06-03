@@ -37,7 +37,7 @@ def load_pretrained_model(args, model_idx, device):
         model = wu.load_pretrained_wilds_model(dataset, args.models_root,
                                                device, model_idx, args.model_seed)
     else:
-        model = get_model(args.model, no_dropout=args.no_dropout)#.to(device)
+        model = get_model(args.model, no_dropout=args.no_dropout, device=device)#.to(device)
         if args.benchmark in ['R-MNIST', 'MNIST-OOD']:
             fpath = os.path.join(args.models_root, 'lenet_mnist/lenet_mnist_{}_{}')
         elif args.benchmark in ['R-FMNIST', 'FMNIST-OOD']:
@@ -77,7 +77,7 @@ def load_pretrained_model(args, model_idx, device):
     return model
 
 
-def get_model(model_class, no_dropout=False):
+def get_model(model_class, no_dropout=False, device=None):
     if model_class == 'MLP':
         model = mlp.MLP([784, 100, 100, 10], act='relu')
     elif model_class == 'LeNet':
@@ -97,12 +97,13 @@ def get_model(model_class, no_dropout=False):
     elif model_class == 'WRN16-4-BBB-flipout':
         model = wrn_bbb.WideResNetBBB(16, 4, 10, estimator='flipout')
     elif model_class == 'WRN16-4-CSGHMC':
-        model = [wrn.WideResNet(16, 4, 10, dropRate=0) for _ in range(12)]  # 12 samples in CSGHMC
+        model = [wrn.WideResNet(16, 4, 10, dropRate=0).to(device) for _ in range(12)]  # 12 samples in CSGHMC
+        return model
     elif model_class == 'WRN50-2':
         model = torch_models.wide_resnet50_2()
     else:
         raise ValueError('Choose LeNet, WRN16-4, or WRN50-2 as model_class.')
-    return model
+    return model.to(device)
 
 
 def mixture_model_pred(components, x, mixture_weights, prediction_mode='mola',
