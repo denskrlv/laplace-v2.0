@@ -26,7 +26,8 @@ from laplace.lllaplace import (
 )
 from laplace.marglik_training import marglik_training
 from laplace.subnetlaplace import DiagSubnetLaplace, FullSubnetLaplace, SubnetLaplace
-from laplace.subspace_laplace import SubspaceLaplace  # Add this line
+
+from laplace.subspace_laplace import SubspaceLaplace
 
 from laplace.utils.enums import (
     HessianStructure,
