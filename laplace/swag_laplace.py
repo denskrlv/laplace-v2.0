@@ -177,34 +177,43 @@ class SWAGLaplace(BaseLaplace):
         self._compute_laplace_approximation()
 
     def _compute_laplace_approximation(self):
-        """Compute Laplace approximation using SWAG statistics."""
+        """Compute Laplace approximation using SWAG statistics.
+        H is set to be a diagonal matrix where H_ii = 1 / var_swag_ii.
+        The low-rank SWAG components U, S are not used to form this diagonal H.
+        """
         # Set the model parameters to SWAG mean
-        for param, mean in zip(self.params, self.swag_mean):
-            param.data.copy_(mean)
+        # self.swag_mean is a list of tensors, aligned with model.parameters()
+        with torch.no_grad():
+            for model_param, mean_val in zip(self.model.parameters(), self.swag_mean):
+                model_param.data.copy_(mean_val)
         
-        # Initialize Hessian using SWAG covariance
-        self._init_H()
+        # Initialize Hessian (which is a 1D vector for diagonal approximation)
+        self._init_H()  # self.H is now torch.zeros(n_params_total, device=self._device, dtype=self._dtype)
         
-        # Update Hessian with SWAG covariance information
-        var, (U, S) = self.swag_covariance['var'], (
-            self.swag_covariance['U'],
-            self.swag_covariance['S']
+        # swag_covariance['var'] is a list of tensors, each holding diagonal variances for a parameter group
+        swag_var_list = self.swag_covariance['var']
+        
+        # Ensure all parts are on the correct device and dtype
+        target_device = self._device
+        target_dtype = self._dtype
+
+        # Concatenate all per-layer/per-parameter-group variances into a single flat vector
+        flat_swag_var_diag = torch.cat(
+            [v.flatten().to(target_device, target_dtype) for v in swag_var_list]
         )
         
-        # Add diagonal variance to Hessian
-        for i, param in enumerate(self.params):
-            self.H[i] += 1.0 / var[i]
+        # self.H represents the diagonal of the precision matrix (1/variance).
+        # Clamp the variance using self.swag.var_clamp to prevent division by zero or very small numbers.
+        # self.swag.var_clamp should be available from the SWAG instance initialized in __init__.
+        clamped_flat_swag_var_diag = torch.clamp(flat_swag_var_diag, min=self.swag.var_clamp)
         
-        # Add low-rank approximation if available
-        if U is not None and S is not None:
-            # Compute low-rank update to Hessian
-            D = torch.stack([p.flatten() for p in self.params])
-            H_update = U @ torch.diag(S) @ U.T
-            H_update = H_update.view_as(D)
-            
-            # Add to Hessian
-            for i, param in enumerate(self.params):
-                self.H[i] += H_update[i].view(param.shape)
+        self.H = 1.0 / clamped_flat_swag_var_diag
+        
+        # The low-rank components U and S from self.swag_covariance are not directly used
+        # to construct this diagonal Hessian H. They are stored in self.swag_covariance
+        # and might be used by other methods if a more complete SWAG posterior is needed (e.g., for sampling).
+        # The original code's attempt to add a low-rank update to a strictly diagonal H was problematic.
+        # For a diagonal H, this is the most direct way to incorporate SWAG's diagonal variance.
 
     def sample(self, n_samples: int = 1) -> list[torch.Tensor]:
         """Sample from the SWAG-Laplace posterior.
@@ -216,7 +225,7 @@ class SWAGLaplace(BaseLaplace):
             
         Returns
         -------
-        list[torch.Tensor]
+        list[torch.Tensor]s
             List of sampled parameter sets
         """
         samples = []
