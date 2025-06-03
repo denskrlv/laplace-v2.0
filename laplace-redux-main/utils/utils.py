@@ -37,7 +37,7 @@ def load_pretrained_model(args, model_idx, device):
         model = wu.load_pretrained_wilds_model(dataset, args.models_root,
                                                device, model_idx, args.model_seed)
     else:
-        model = get_model(args.model, no_dropout=args.no_dropout).to(device)
+        model = get_model(args.model, no_dropout=args.no_dropout)#.to(device)
         if args.benchmark in ['R-MNIST', 'MNIST-OOD']:
             fpath = os.path.join(args.models_root, 'lenet_mnist/lenet_mnist_{}_{}')
         elif args.benchmark in ['R-FMNIST', 'FMNIST-OOD']:
