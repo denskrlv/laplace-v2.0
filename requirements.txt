@@ -32,13 +32,11 @@ tqdm==4.67.1
 typing_extensions==4.13.2
 unfoldNd==0.2.3
 wheel==0.45.1
-
-pyaml==6.0.2
+pyaml
 wilds
 pycalib
 transformers
 torch_geometric
 torch_scatter
 bayesian_torch
-
 -e .
