@@ -9,10 +9,17 @@ from torch.autograd import grad
 from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from torch.utils.data import DataLoader
 
+import tqdm
+
 from laplace.baselaplace import ParametricLaplace
 from laplace.curvature.curvature import CurvatureInterface
 from laplace.utils.enums import Likelihood
 from laplace import FullLaplace
+
+def _flatten(tensor_list):
+    """Vectorise a list of tensors, skipping None entries and
+    making every slice contiguous."""
+    return torch.cat([t.reshape(-1) for t in tensor_list if t is not None])
 
 
 class SubspaceLaplace(ParametricLaplace):
@@ -226,7 +233,7 @@ class SubspaceLaplace(ParametricLaplace):
         y: torch.Tensor,
         v: torch.Tensor,
     ) -> tuple[torch.Tensor, None]:
-        if hasattr(self.backend, "hvp")
+        if hasattr(self.backend, "hvp"):
             return self.backend.hvp(X, y, v), None
 
         # forward + scalar loss
@@ -235,30 +242,70 @@ class SubspaceLaplace(ParametricLaplace):
 
         # first-order gradient
         g = grad(loss, self.params, create_graph=True)
-        g_flat = parameters_to_vector(g)
+        g_flat = _flatten(g)
 
         # dot with v
         dot = (g_flat * v).sum()
 
         # second-order gradient
         Hv = grad(dot, self.params, retain_graph=False)
-        Hv_flat = parameters_to_vector(Hv).detach()
+        Hv_flat = _flatten(Hv).detach()
 
         return Hv_flat, None
 
-    def fit(self, train_loader, override=True, progress_bar=False):
-        # Temporarily force full‐space H
-        orig_init_H = type(self)._init_H
-        type(self)._init_H = FullLaplace._init_H
-        # Accumulate full Hessian
-        super().fit(train_loader, override=override, progress_bar=progress_bar)
-        # Restore proper init for subspace
-        type(self)._init_H = orig_init_H
-        # Build U and project
-        self._init_subspace_basis(train_loader)
-        H_full = self.H
-        self.H = self.U.T @ H_full @ self.U
-        # Reset posterior scale
+    # def fit(self, train_loader, override=True, progress_bar=True):
+    #     # Temporarily force full‐space H
+    #     print(1)
+    #     orig_init_H = type(self)._init_H
+    #     type(self)._init_H = FullLaplace._init_H
+    #     # Accumulate full Hessian
+    #     print(2)
+    #     super().fit(train_loader, override=override, progress_bar=progress_bar)
+    #     # Restore proper init for subspace
+    #     print(3)
+    #     type(self)._init_H = orig_init_H
+    #     # Build U and project
+    #     print(4)
+    #     self._init_subspace_basis(train_loader)
+    #     H_full = self.H
+    #     self.H = self.U.T @ H_full @ self.U
+    #     # Reset posterior scale
+    #     print(5)
+    #     self._posterior_scale = None
+
+    def fit(self, train_loader, override=True, progress_bar=True):
+        """
+        1.  Find the sub-space basis **before** any curvature is stored.
+        2.  Estimate the K×K Hessian inside that sub-space *on the fly*
+            with Hessian–vector products; never materialise the full matrix.
+        """
+        if override:
+            self._init_H()                      # empty K×K matrix
+
+        # (1) Sub-space basis
+        self._init_subspace_basis(train_loader)  # fills self.U  (P×K)
+
+        # (2) Accumulate projected curvature
+        self.model.eval()
+        N = len(train_loader.dataset)
+
+        # ------ progress-bar wrapper ---------------------------------
+        pbar = tqdm.tqdm(train_loader,
+                         disable=not progress_bar,
+                         desc="[Subspace LA] accumulating Hessian")
+        # --------------------------------------------------------------
+        
+        for X, y in pbar:
+            X, y = X.to(self._device), y.to(self._device)
+
+            # For every basis vector u_j compute H u_j and
+            # inner-products u_iᵀ (H u_j)  →  add to K×K matrix
+            for j in range(self.subspace_dim):
+                u_j = self.U[:, j]
+                H_u_j, _ = self._hessian_vector_product(X, y, u_j)
+                proj = self.U.t().mv(H_u_j)        # (K,)
+                self.H[:, j] += proj * (train_loader.batch_size / N)
+        print('done')
         self._posterior_scale = None
 
     def _compute_scale(self) -> None:
@@ -355,3 +402,7 @@ class SubspaceLaplace(ParametricLaplace):
             raise ValueError("Jacobians have to be torch.Tensor.")
         if not Js.device == self._device:
             raise ValueError("Jacobians need to be on the same device as Laplace.")
+        
+
+# from laplace.laplace import _LAPLACE_LOOKUP
+# _LAPLACE_LOOKUP[('all', 'subspace')] = SubspaceLaplace
