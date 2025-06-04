@@ -3,7 +3,7 @@ asdfghjkl-old==0.1a2
 asdl==0.1.5
 backpack==0.1
 backpack-for-pytorch==1.7.1
-curvlinops-for-==2.0.1
+curvlinops-for-pytorch==2.0.1
 einconv==0.1.0
 einops==0.8.1
 filelock==3.18.0
