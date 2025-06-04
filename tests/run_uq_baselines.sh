@@ -1,13 +1,10 @@
 #!/bin/bash
-cd laplace-redux-main
-# =========================================================
-#  Settings (edit here once)
-# =========================================================
-SUBSPACE_DIM=20           # K in the paper
-SUBSPACE_METHOD=random
-EIG_STEPS=100             # power-iteration steps
+cd tests
 
 # extra flags bundled for convenience
+SUBSPACE_DIM=20
+SUBSPACE_METHOD=random
+EIG_STEPS=100
 SUBSPACE_ARGS="--method subspace \
                --subspace_dim ${SUBSPACE_DIM} \
                --subspace_method ${SUBSPACE_METHOD} \

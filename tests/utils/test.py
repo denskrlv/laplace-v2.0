@@ -52,7 +52,7 @@ def test(components, test_loader, prediction_mode, pred_type='glm', n_samples=10
                 n_samples=n_samples,
                 likelihood=likelihood)
 
-        elif prediction_mode in ['laplace, subspace']:
+        elif prediction_mode in ['laplace', 'subspace']:
             y_prob = model(
                 x, pred_type=pred_type, link_approx=link_approx, n_samples=n_samples)
 

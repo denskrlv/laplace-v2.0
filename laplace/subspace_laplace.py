@@ -283,11 +283,9 @@ class SubspaceLaplace(ParametricLaplace):
             self._init_H()                      # empty K×K matrix
 
         # (1) Sub-space basis
-        print(1)
         self._init_subspace_basis(train_loader)  # fills self.U  (P×K)
 
         # (2) Accumulate projected curvature
-        print(2)
         self.model.eval()
         N = len(train_loader.dataset)
 
@@ -296,7 +294,6 @@ class SubspaceLaplace(ParametricLaplace):
                          disable=not progress_bar,
                          desc="[Subspace LA] accumulating Hessian")
         # --------------------------------------------------------------
-        print(3)
         
         for X, y in pbar:
             X, y = X.to(self._device), y.to(self._device)
