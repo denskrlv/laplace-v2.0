@@ -14,6 +14,9 @@ from baselines.swag.swag import fit_swag_and_precompute_bn_params
 
 import warnings
 warnings.filterwarnings('ignore')
+import torch.nn as nn
+
+from laplace.swag_laplace import SWAGLaplace
 
 
 def main(args):
@@ -119,6 +122,49 @@ def fit_models(args, train_loader, val_loader, device):
             )
             model.fit(train_loader)
 
+        elif args.method == 'swag_laplace':
+            print("Fitting SWAG-Laplace...")
+            
+            # Initialize the SWAGLaplace instance with the loaded neural network model
+            # The 'model' variable will now refer to the SWAGLaplace instance.
+            model_instance = SWAGLaplace(
+                model,  # Pass the actual nn.Module
+                likelihood=args.likelihood,
+                prior_precision=args.prior_precision, # Handled by BaseLaplace via **kwargs
+                temperature=args.temperature,       # Handled by BaseLaplace via **kwargs
+                n_models=args.swag_n_snapshots,
+                max_num_models=args.swag_n_snapshots, # Ensure max_num_models accommodates n_models
+                swa_lr=args.swag_lr, # Passed to SWAGLaplace __init__ for SWAG utility
+                # You might want to add args for swa_freq, start_epoch, var_clamp if needed
+                # e.g., swa_freq=getattr(args, 'swag_freq', 1),
+                device=device
+            )
+
+            # Create optimizer for the SWAG training phase
+            # It should optimize the parameters of the underlying nn.Module
+            optimizer = torch.optim.SGD(
+                model.parameters(), # Use parameters of the original nn_model
+                lr=1e-4, # Learning rate for SWAG-Laplace
+                momentum=0.9 # A common momentum value for SWAG's SGD
+            )
+            
+            # Create criterion
+            if args.likelihood == 'classification':
+                criterion = nn.CrossEntropyLoss()
+            elif args.likelihood == 'regression':
+                criterion = nn.MSELoss() # Adjust if a different loss is standard for regression in your setup
+            else:
+                raise ValueError(f"Unsupported likelihood for SWAG-Laplace criterion: {args.likelihood}")
+            
+            model_instance.fit(
+                train_loader,
+                optimizer=optimizer,
+                criterion=criterion,
+                epochs=10,
+                progress_bar=getattr(args, 'progress_bar', True) # Example for progress bar
+            )
+            model = model_instance # Ensure the 'model' variable for mixture_components is the SWAGLaplace instance
+
         if args.likelihood == 'regression' and args.sigma_noise is None:
             print("Optimizing noise standard deviation on validation data...")
             args.sigma_noise = wu.optimize_noise_standard_deviation(model, val_loader, device)
@@ -216,7 +262,7 @@ if __name__ == "__main__":
                         choices=['map', 'ensemble',
                                  'laplace', 'mola', 'subspace',
                                  'swag', 'multi-swag',
-                                 'bbb', 'csghmc'],
+                                 'bbb', 'csghmc', 'swag_laplace'],
                         default='laplace',
                         help='name of method to use')
     parser.add_argument('--seed', type=int, default=1,
