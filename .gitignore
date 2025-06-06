@@ -2,7 +2,6 @@
 __pycache__/
 *.py[cod]
 *$py.class
-models.zip
 # C extensions
 *.so
 
@@ -175,3 +174,4 @@ cython_debug/
 
 # Data
 data/
+model.zip
