@@ -258,7 +258,6 @@ if __name__ == "__main__":
     parser.add_argument('--hessians_root', type=str, default='./hessians',
                         help='root of pre-computed Hessians')
     parser.add_argument('--method', type=str,
-                        
                         choices=['map', 'ensemble',
                                  'laplace', 'mola', 'subspace',
                                  'swag', 'multi-swag',
@@ -336,9 +335,9 @@ if __name__ == "__main__":
     parser.add_argument('--no_dropout', action='store_true', help='only for WRN-fixup.')
     parser.add_argument('--data_parallel', action='store_true',
                         help='if True, use torch.nn.DataParallel(model)')
-    parser.add_argument('--batch_size', type=int, default=10,
+    parser.add_argument('--batch_size', type=int, default=512,
                         help='batch size for testing')
-    parser.add_argument('--val_set_size', type=int, default=20,
+    parser.add_argument('--val_set_size', type=int, default=2000,
                         help='size of validation set (taken from test set)')
     parser.add_argument('--use_temperature_scaling', default=False,
                         help='if True, calibrate model using temperature scaling')

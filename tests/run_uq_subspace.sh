@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 cd tests
 
 SUBSPACE_DIM=20
@@ -8,7 +8,7 @@ SUBSPACE_ARGS="--method subspace \
                --subspace_dim ${SUBSPACE_DIM} \
                --subspace_method ${SUBSPACE_METHOD} \
                --eig_steps ${EIG_STEPS}"
-seed=42
+seed=6
 
 # ---- Subspace Laplace ----
 python uq.py --data_root ~/Datasets --benchmark R-MNIST --model LeNet \
