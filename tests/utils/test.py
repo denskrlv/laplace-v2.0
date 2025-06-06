@@ -11,7 +11,7 @@ def test(components, test_loader, prediction_mode, pred_type='glm', n_samples=10
          likelihood='classification', sigma_noise=None):
 
     temperature_scaling_model = None
-    if prediction_mode in ['map', 'laplace', 'subspace', 'bbb', 'csghmc']:
+    if prediction_mode in ['map', 'laplace', 'subspace', 'bbb', 'csghmc', 'swag_laplace']:
         model = components[0]
         if prediction_mode in ['map', 'bbb']:
             if prediction_mode == 'map' and isinstance(model, tuple):
@@ -52,7 +52,7 @@ def test(components, test_loader, prediction_mode, pred_type='glm', n_samples=10
                 n_samples=n_samples,
                 likelihood=likelihood)
 
-        elif prediction_mode in ['laplace', 'subspace']:
+        elif prediction_mode in ['laplace', 'subspace', 'swag_laplace']:
             y_prob = model(
                 x, pred_type=pred_type, link_approx=link_approx, n_samples=n_samples)
 
