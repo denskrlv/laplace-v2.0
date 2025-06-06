@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+models.zip
 # C extensions
 *.so
 
