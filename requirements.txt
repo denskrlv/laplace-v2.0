@@ -36,7 +36,8 @@ pyaml
 wilds
 pycalib
 transformers
-# torch_geometric
-# torch_scatter
+torch_geometric
+torch_scatter
 bayesian_torch
+tabulate
 -e .
