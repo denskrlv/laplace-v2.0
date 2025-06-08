@@ -4,6 +4,7 @@ torchmetrics
 torchvision
 tqdm
 seaborn
+ace-tools
 matplotlib
 backpack
 curvlinops-for-pytorch
