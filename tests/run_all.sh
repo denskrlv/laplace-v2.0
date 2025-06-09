@@ -16,27 +16,30 @@ log_header() {
 # --- Define correct paths relative to the project root ---
 MODELS_ROOT="./tests/models"
 DATA_ROOT="./data"
-CONFIGS_ROOT="./tests/configs"
-
 
 # --- MNIST Benchmark Test Runs (R-MNIST) ---
 log_header "Testing R-MNIST Benchmark"
 MODEL_SEED=6
 BENCHMARK="R-MNIST"
+MODEL="LeNet"
 
 # MAP
 log_header "[${BENCHMARK}] Running: MAP Baseline"
-python tests/uq.py --benchmark ${BENCHMARK} --method map --model LeNet \
+python tests/uq.py --benchmark ${BENCHMARK} --method map --model ${MODEL} \
     --model_seed ${MODEL_SEED} --data_root ${DATA_ROOT} --models_root ${MODELS_ROOT} --download
 
-# Laplace (Default)
+# Laplace (Default LA)
 log_header "[${BENCHMARK}] Running: Default Laplace (LA)"
-python tests/uq.py --benchmark ${BENCHMARK} --config ${CONFIGS_ROOT}/post_hoc_laplace/mnist_default.yaml \
+python tests/uq.py --benchmark ${BENCHMARK} --method laplace --model ${MODEL} \
+    --subset_of_weights last_layer --hessian_structure kron --approx_type ggn \
+    --optimize_prior_precision marglik \
     --model_seed ${MODEL_SEED} --data_root ${DATA_ROOT} --models_root ${MODELS_ROOT} --download
 
 # Laplace (OOD-Optimized LA*)
 log_header "[${BENCHMARK}] Running: OOD-Optimized Laplace (LA*)"
-python tests/uq.py --benchmark ${BENCHMARK} --config ${CONFIGS_ROOT}/post_hoc_laplace/mnist_bestood.yaml \
+python tests/uq.py --benchmark ${BENCHMARK} --method laplace --model ${MODEL} \
+    --subset_of_weights last_layer --hessian_structure full --approx_type ef \
+    --optimize_prior_precision marglik \
     --model_seed ${MODEL_SEED} --data_root ${DATA_ROOT} --models_root ${MODELS_ROOT} --download
 
 
@@ -50,14 +53,18 @@ log_header "[${BENCHMARK}] Running: MAP Baseline"
 python tests/uq.py --benchmark ${BENCHMARK} --method map --model ${MODEL} \
     --model_seed ${MODEL_SEED} --data_root ${DATA_ROOT} --models_root ${MODELS_ROOT} --download
 
-# Laplace (Default)
+# Laplace (Default LA)
 log_header "[${BENCHMARK}] Running: Default Laplace (LA)"
-python tests/uq.py --benchmark ${BENCHMARK} --config ${CONFIGS_ROOT}/post_hoc_laplace/cifar10_default.yaml \
+python tests/uq.py --benchmark ${BENCHMARK} --method laplace --model ${MODEL} \
+    --subset_of_weights last_layer --hessian_structure kron --approx_type ggn \
+    --optimize_prior_precision marglik \
     --model_seed ${MODEL_SEED} --data_root ${DATA_ROOT} --models_root ${MODELS_ROOT} --download
 
 # Laplace (OOD-Optimized LA*)
 log_header "[${BENCHMARK}] Running: OOD-Optimized Laplace (LA*)"
-python tests/uq.py --benchmark ${BENCHMARK} --config ${CONFIGS_ROOT}/post_hoc_laplace/cifar10_bestood.yaml \
+python tests/uq.py --benchmark ${BENCHMARK} --method laplace --model ${MODEL} \
+    --subset_of_weights last_layer --hessian_structure full --approx_type ef \
+    --optimize_prior_precision marglik \
     --model_seed ${MODEL_SEED} --data_root ${DATA_ROOT} --models_root ${MODELS_ROOT} --download
 
 
