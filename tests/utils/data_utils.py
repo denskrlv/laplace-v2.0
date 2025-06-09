@@ -47,23 +47,6 @@ def get_in_distribution_data_loaders(args, device):
             download=args.download,
             device=device)
 
-    elif args.benchmark in ['R-FMNIST', 'FMNIST-OOD']:
-        if args.benchmark == 'R-FMNIST':
-            no_loss_acc = False
-            # here, id is the rotation angle
-            ids = [0, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180]
-        else:
-            no_loss_acc = True
-            # here, id is the name of the dataset
-            ids = ['FMNIST', 'EMNIST', 'MNIST', 'KMNIST']
-        train_loader, val_loader, in_test_loader = get_fmnist_loaders(
-            args.data_root,
-            model_class=args.model,
-            batch_size=args.batch_size,
-            val_size=args.val_set_size,
-            download=args.download,
-            device=device)
-
     elif args.benchmark in ['CIFAR-10-C', 'CIFAR-10-OOD']:
         if args.benchmark == 'CIFAR-10-C':
             no_loss_acc = False
@@ -365,19 +348,56 @@ class DatafeedImage(torch.utils.data.Dataset):
 
 def load_corrupted_cifar10(severity, data_dir='data', batch_size=256, cuda=True,
                            workers=1):
-    """ load corrupted CIFAR10 dataset """
+    """
+    Load corrupted CIFAR-10 dataset for a specific severity level.
+    This version correctly handles the data format from the Zenodo download.
+    """
+    if not isinstance(severity, int) or not (0 <= severity <= 5):
+        raise ValueError("Severity must be an integer between 0 and 5.")
 
-    x_file = data_dir + '/CIFAR-10-C/CIFAR10_c%d.npy' % severity
-    np_x = np.load(x_file)
-    y_file = data_dir + '/CIFAR-10-C/CIFAR10_c_labels.npy'
-    np_y = np.load(y_file).astype(np.int64)
+    # Severity 0 corresponds to the original, uncorrupted test set.
+    if severity == 0:
+        _, _, test_loader = get_cifar10_loaders(data_dir, batch_size)
+        return test_loader
+
+    corruption_types = [
+        'brightness', 'contrast', 'defocus_blur', 'elastic_transform', 'fog',
+        'frost', 'gaussian_blur', 'gaussian_noise', 'glass_blur', 'impulse_noise',
+        'jpeg_compression', 'motion_blur', 'pixelate', 'saturate', 'shot_noise',
+        'snow', 'spatter', 'speckle_noise', 'zoom_blur'
+    ]
+    data_dir_c = os.path.join(data_dir, 'CIFAR-10-C')
+
+    # Load all corruption types for the given severity.
+    all_x = list()
+    for corruption in corruption_types:
+        x_file = os.path.join(data_dir_c, f"{corruption}.npy")
+        if not os.path.exists(x_file):
+            raise FileNotFoundError(f"Missing corruption file: {x_file}. Please ensure CIFAR-10-C is downloaded and extracted correctly.")
+
+        data_chunk = np.load(x_file)
+        # Each severity level has 10,000 images.
+        start_idx = (severity - 1) * 10000
+        end_idx = severity * 10000
+        all_x.append(data_chunk[start_idx:end_idx])
+
+    # Concatenate all corruption types for the given severity.
+    np_x = np.concatenate(all_x)
+
+    # Load labels and tile them for each corruption type.
+    y_file = os.path.join(data_dir_c, 'labels.npy')
+    if not os.path.exists(y_file):
+        raise FileNotFoundError(f"Missing labels file: {y_file}. Please ensure CIFAR-10-C is downloaded and extracted correctly.")
+
+    labels_chunk = np.load(y_file).astype(np.int64)
+    labels_for_severity = labels_chunk[(severity - 1) * 10000 : severity * 10000]
+    np_y = np.tile(labels_for_severity, len(corruption_types))
 
     transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
     ])
     dataset = DatafeedImage(np_x, np_y, transform)
-    dataset = data_utils.Subset(dataset, torch.randint(len(dataset), (10000,)))
 
     loader = torch.utils.data.DataLoader(
         dataset,
