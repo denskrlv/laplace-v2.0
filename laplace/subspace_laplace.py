@@ -6,7 +6,7 @@ import warnings
 import torch
 from torch import nn
 from torch.autograd import grad
-from torch.nn.utils import parameters_to_vector, vector_to_parameters
+from torch.nn.utils import vector_to_parameters
 from torch.utils.data import DataLoader
 
 import tqdm
@@ -14,7 +14,7 @@ import tqdm
 from laplace.baselaplace import ParametricLaplace
 from laplace.curvature.curvature import CurvatureInterface
 from laplace.utils.enums import Likelihood
-from laplace import FullLaplace
+
 
 def _flatten(tensor_list):
     """Vectorise a list of tensors, skipping None entries and
@@ -26,14 +26,14 @@ class SubspaceLaplace(ParametricLaplace):
     """
     Instead of defining a Gaussian posterior over the entire parameter space,
     it performs inference only in a K-dimensional subspace (K << P)
-    defined by basis vectors. 
+    defined by basis vectors.
     The remaining directions are kept fixed at the MAP estimate.
-    
+
     Works with:
     - "hessian_eig"
     - "pca_sgd"
     - "random"
-    
+
     Parameters:
         - model : torch.nn.Module
 
@@ -43,7 +43,7 @@ class SubspaceLaplace(ParametricLaplace):
 
         - subspace_method : str, default='hessian_eig'
 
-        - n_eig_samples : int, default=100 (for 'hessian_eig')
+        - n_eig_samples : int, default=10 (for 'hessian_eig')
 
         - sigma_noise : torch.Tensor or float, default=1 (must be 1 for classification)
 
@@ -64,17 +64,17 @@ class SubspaceLaplace(ParametricLaplace):
         - backend_kwargs : dict, default=None
 
     """
-    
+
     # key to map to correct subclass of BaseLaplace, (subset of weights, Hessian structure)
     _key = ("all", "subspace")
-    
+
     def __init__(
         self,
         model: nn.Module,
         likelihood: Likelihood | str,
         subspace_dim: int = 20,
         subspace_method: Literal["hessian_eig", "pca_sgd", "random"] = "hessian_eig",
-        n_eig_samples: int = 100,
+        n_eig_samples: int = 10,
         sigma_noise: float | torch.Tensor = 1.0,
         prior_precision: float | torch.Tensor = 1.0,
         prior_mean: float | torch.Tensor = 0.0,
@@ -85,7 +85,7 @@ class SubspaceLaplace(ParametricLaplace):
         backend: Type[CurvatureInterface] | None = None,
         backend_kwargs: dict[str, Any] | None = None,
     ):
-        
+
         self.subspace_dim = subspace_dim
         super().__init__(
             model,
@@ -100,17 +100,17 @@ class SubspaceLaplace(ParametricLaplace):
             backend=backend,
             backend_kwargs=backend_kwargs,
         )
-        
+
         self.subspace_dim = min(subspace_dim, self.n_params)
         if self.subspace_dim < subspace_dim:
             warnings.warn(
                 f"Requested subspace dimension {subspace_dim} exceeds parameter count {self.n_params}. "
                 f"Using {self.subspace_dim} instead."
             )
-            
+
         self.subspace_method = subspace_method
         self.n_eig_samples = n_eig_samples
-        
+
         # Subspace basis and projections
         self.U = None
         self.H_proj = None
@@ -136,21 +136,20 @@ class SubspaceLaplace(ParametricLaplace):
             U = torch.randn(self.n_params, self.subspace_dim, device=self._device, dtype=self._dtype)
             U, _ = torch.linalg.qr(U)  # Orthonormalize
             self.U = U
-            
+
         elif self.subspace_method == "hessian_eig":
             # Estimate top eigenvectors of the Hessian using power iteration
             self.U = self._compute_hessian_eigenvectors(train_loader)
-            
+
         elif self.subspace_method == "pca_sgd":
             # Use principal components from SGD trajectory
             # Note: This would require storing SGD iterates which we don't have access to here
-            # For now, we'll fall back to random initialization with a warning
             warnings.warn(
                 "SGD trajectory-based PCA subspace not implemented yet. "
                 "Falling back to Hessian eigenvectors."
             )
             self.U = self._compute_hessian_eigenvectors(train_loader)
-            
+
         else:
             raise ValueError(f"Unknown subspace method: {self.subspace_method}")
 
@@ -160,71 +159,52 @@ class SubspaceLaplace(ParametricLaplace):
         dtype = self._dtype
         n_params = self.n_params
         k = self.subspace_dim
-        
+        N = len(train_loader.dataset)
+
         # Initialize random orthonormal basis
         Q = torch.randn(n_params, k, device=device, dtype=dtype)
         Q, _ = torch.linalg.qr(Q)  # Orthonormalize
-        
+
         # Power iteration steps
+        # These are more expensive, so fewer are needed.
         num_steps = self.n_eig_samples
-        for _ in range(num_steps):
-            # Compute Hessian-vector products for each column of Q
+        pbar_outer = tqdm.tqdm(range(num_steps), desc="[Subspace LA] Power Iteration", leave=False)
+        for _ in pbar_outer:
+            # Compute Hessian-vector products for each column of Q using the full dataset
             HQ = torch.zeros_like(Q)
-            
-            for i in range(k):
-                # Project vector into parameter space
-                q = Q[:, i]
-                vector_to_parameters(q, self.params)
-                
-                # Sample mini-batch
-                try:
-                    X, y = next(iter(train_loader))
-                    X, y = X.to(device), y.to(device)
-                except (ValueError, TypeError):
-                    # Handle dict-type data for e.g. Huggingface models
-                    data = next(iter(train_loader))
-                    X, y = data, data[self.dict_key_y].to(device)
-                
-                # Compute Hessian-vector product using the backend
-                HQ[:, i], _ = self._hessian_vector_product(X, y, q)
-                
-                # Reset parameters to MAP
-                vector_to_parameters(self.mean, self.params)
-            
-            # QR decomposition for orthogonalization
-            Q, _ = torch.linalg.qr(HQ)
-            
-        # Final multiplication to get better eigenvector estimates
-        HQ = torch.zeros_like(Q)
-        for i in range(k):
-            q = Q[:, i]
-            vector_to_parameters(q, self.params)
-            
-            try:
-                X, y = next(iter(train_loader))
+            for X, y in train_loader:
                 X, y = X.to(device), y.to(device)
-            except (ValueError, TypeError):
-                data = next(iter(train_loader))
-                X, y = data, data[self.dict_key_y].to(device)
-                
-            HQ[:, i], _ = self._hessian_vector_product(X, y, q)
-            vector_to_parameters(self.mean, self.params)
-        
-        # Perform an eigendecomposition on the small matrix Q^T HQ to extract eigenvalues
-        QHQ = torch.matmul(Q.t(), HQ)  # [k, k]
+                # Accumulate the HVP for this batch for each vector in Q
+                for i in range(k):
+                    q = Q[:, i]
+                    H_batch_q, _ = self._hessian_vector_product(X, y, q)
+                    HQ[:, i] += H_batch_q * len(X) # Multiply by batch size
+
+            HQ /= N # Average over dataset size
+
+            # Orthogonalize for the next step
+            Q, _ = torch.linalg.qr(HQ)
+
+        # Rayleigh-Ritz projection to refine eigenvectors
+        HQ = torch.zeros_like(Q)
+        for X, y in train_loader:
+            X, y = X.to(device), y.to(device)
+            for i in range(k):
+                q = Q[:, i]
+                H_batch_q, _ = self._hessian_vector_product(X, y, q)
+                HQ[:, i] += H_batch_q * len(X)
+        HQ /= N
+
+        QHQ = torch.matmul(Q.t(), HQ)
         eigvals, eigvecs = torch.linalg.eigh(QHQ)
-        
+
         # Sort by descending eigenvalues
         idx = torch.argsort(eigvals, descending=True)
-        eigvals = eigvals[idx]
         eigvecs = eigvecs[:, idx]
-        
+
         # Get the final eigenvectors in the original space
         U = torch.matmul(Q, eigvecs)
-        
-        # Ensure orthonormality
-        U, _ = torch.linalg.qr(U)
-        
+
         return U
 
     def _hessian_vector_product(
@@ -233,13 +213,19 @@ class SubspaceLaplace(ParametricLaplace):
         y: torch.Tensor,
         v: torch.Tensor,
     ) -> tuple[torch.Tensor, None]:
+        
+        vector_to_parameters(v, self.params)
+        
         if hasattr(self.backend, "hvp"):
-            return self.backend.hvp(X, y, v), None
+            # Backend might have a more efficient implementation
+            H_v_flat = self.backend.hvp(X, y, v)
+            vector_to_parameters(self.mean, self.params) # Restore MAP
+            return H_v_flat, None
 
-        # forward + scalar loss
+        # Fallback using torch.autograd.grad
         out = self.model(X)
-        loss = self.backend.lossfunc(out, y) * self.backend.factor
-
+        loss = self.backend.lossfunc(out, y)
+        
         # first-order gradient
         g = grad(loss, self.params, create_graph=True)
         g_flat = _flatten(g)
@@ -250,28 +236,10 @@ class SubspaceLaplace(ParametricLaplace):
         # second-order gradient
         Hv = grad(dot, self.params, retain_graph=False)
         Hv_flat = _flatten(Hv).detach()
-
+        
+        vector_to_parameters(self.mean, self.params) # Restore MAP
+        
         return Hv_flat, None
-
-    # def fit(self, train_loader, override=True, progress_bar=True):
-    #     # Temporarily force full‐space H
-    #     print(1)
-    #     orig_init_H = type(self)._init_H
-    #     type(self)._init_H = FullLaplace._init_H
-    #     # Accumulate full Hessian
-    #     print(2)
-    #     super().fit(train_loader, override=override, progress_bar=progress_bar)
-    #     # Restore proper init for subspace
-    #     print(3)
-    #     type(self)._init_H = orig_init_H
-    #     # Build U and project
-    #     print(4)
-    #     self._init_subspace_basis(train_loader)
-    #     H_full = self.H
-    #     self.H = self.U.T @ H_full @ self.U
-    #     # Reset posterior scale
-    #     print(5)
-    #     self._posterior_scale = None
 
     def fit(self, train_loader, override=True, progress_bar=True):
         """
@@ -280,32 +248,28 @@ class SubspaceLaplace(ParametricLaplace):
             with Hessian–vector products; never materialise the full matrix.
         """
         if override:
-            self._init_H()                      # empty K×K matrix
+            self._init_H()
 
         # (1) Sub-space basis
-        self._init_subspace_basis(train_loader)  # fills self.U  (P×K)
+        self._init_subspace_basis(train_loader)
 
         # (2) Accumulate projected curvature
         self.model.eval()
         N = len(train_loader.dataset)
 
-        # ------ progress-bar wrapper ---------------------------------
         pbar = tqdm.tqdm(train_loader,
                          disable=not progress_bar,
                          desc="[Subspace LA] accumulating Hessian")
-        # --------------------------------------------------------------
-        
+
         for X, y in pbar:
             X, y = X.to(self._device), y.to(self._device)
 
-            # For every basis vector u_j compute H u_j and
-            # inner-products u_iᵀ (H u_j)  →  add to K×K matrix
             for j in range(self.subspace_dim):
                 u_j = self.U[:, j]
                 H_u_j, _ = self._hessian_vector_product(X, y, u_j)
-                proj = self.U.t().mv(H_u_j)        # (K,)
-                self.H[:, j] += proj * (train_loader.batch_size / N)
-        print('done')
+                proj = self.U.t().mv(H_u_j)
+                self.H[:, j] += proj * (len(X) / N)
+
         self._posterior_scale = None
 
     def _compute_scale(self) -> None:
@@ -313,22 +277,20 @@ class SubspaceLaplace(ParametricLaplace):
         posterior_precision = self.H + self.prior_precision * torch.eye(
             self.subspace_dim, device=self._device, dtype=self._dtype
         )
-        
+
         # Compute scale matrix (Cholesky of inverse precision)
         jitter = 1e-6
-        for _ in range(5): # try up to 5 times
+        for _ in range(5):
             try:
                 L = torch.linalg.cholesky(posterior_precision + jitter * torch.eye(
                     self.subspace_dim, device=self._device, dtype=self._dtype))
                 self._posterior_scale = torch.linalg.inv(L.T)
+                return # Exit on success
             except RuntimeError:
-                # Handle non-PD matrix (add small diagonal component and retry)
                 jitter *= 10
-                # posterior_precision += jitter * torch.eye(
-                #     self.subspace_dim, device=self._device, dtype=self._dtype
-                # )
-                # L = torch.linalg.cholesky(posterior_precision)
-                # self._posterior_scale = torch.linalg.inv(L.t())
+        
+        # If it fails after retries, raise error
+        raise RuntimeError("Posterior precision is not positive definite.")
 
     @property
     def posterior_scale(self) -> torch.Tensor:
@@ -355,31 +317,31 @@ class SubspaceLaplace(ParametricLaplace):
         # Draw samples in the subspace: z ~ N(0, P_z^-1)
         scale = self.posterior_scale
         z = torch.randn(
-            n_samples, self.subspace_dim, generator=generator, 
+            n_samples, self.subspace_dim, generator=generator,
             device=self._device, dtype=self._dtype
         )
-        
+
         # Project back to parameter space: θ = θ_MAP + U z
-        subspace_samples = z @ scale.t()  # [n_samples, subspace_dim]
+        subspace_samples = z @ scale.t()
         param_samples = self.mean.unsqueeze(0) + torch.matmul(subspace_samples, self.U.t())
-        
+
         return param_samples
 
     def functional_variance(self, Js: torch.Tensor) -> torch.Tensor:
         self._check_jacobians(Js)
-        
+
         # Project Jacobians into subspace
         J_proj = torch.matmul(Js, self.U)
-        
+
         # Covariance in subspace
         subspace_cov = self.posterior_covariance
-        
+
         # Functional variance
         functional_var = torch.matmul(
-            torch.matmul(J_proj, subspace_cov), 
+            torch.matmul(J_proj, subspace_cov),
             torch.transpose(J_proj, -2, -1)
         )
-        
+
         return functional_var
 
     def functional_covariance(self, Js: torch.Tensor) -> torch.Tensor:
@@ -387,11 +349,11 @@ class SubspaceLaplace(ParametricLaplace):
         Js = Js.reshape(n_batch * n_outs, n_params)
         
         # Project Jacobians into subspace
-        J_proj = torch.matmul(Js, self.U)  # [batch_size * output_dim, subspace_dim]
+        J_proj = torch.matmul(Js, self.U)
         
         # Covariance
         cov = torch.matmul(
-            torch.matmul(J_proj, self.posterior_covariance), 
+            torch.matmul(J_proj, self.posterior_covariance),
             J_proj.t()
         )
         
@@ -402,7 +364,3 @@ class SubspaceLaplace(ParametricLaplace):
             raise ValueError("Jacobians have to be torch.Tensor.")
         if not Js.device == self._device:
             raise ValueError("Jacobians need to be on the same device as Laplace.")
-        
-
-# from laplace.laplace import _LAPLACE_LOOKUP
-# _LAPLACE_LOOKUP[('all', 'subspace')] = SubspaceLaplace
