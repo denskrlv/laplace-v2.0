@@ -7,15 +7,18 @@ SUBSPACE_ARGS="--method subspace \
                --subspace_dim ${SUBSPACE_DIM} \
                --subspace_method ${SUBSPACE_METHOD} \
                --eig_steps ${EIG_STEPS}"
-SEED=6
-DATA=~/Datasets
 
 # python uq.py --data_root "$DATA" \
 #         --benchmark R-MNIST --model LeNet \
 #         --models_root models ${SUBSPACE_ARGS} --model_seed "$SEED"
 
-
-python uq.py --data_root "$DATA" \
+for seed in 6 12 13 523 972394; do
+        python uq.py --data_root ~/Datasets \
         --benchmark MNIST-OOD --model LeNet \
-        --models_root models ${SUBSPACE_ARGS} --model_seed "$SEED"
+        --models_root models ${SUBSPACE_ARGS} --model_seed $seed
+done
 
+for seed in 6 12 13 523 972394; do
+  python uq.py --data_root ~/Datasets --benchmark CIFAR-10-OOD --model WRN16-4 \
+         --models_root models -${SUBSPACE_ARGS} --model_seed $seed
+done
