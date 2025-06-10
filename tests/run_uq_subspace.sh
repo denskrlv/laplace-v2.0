@@ -6,7 +6,8 @@ EIG_STEPS=100
 SUBSPACE_ARGS="--method subspace \
                --subspace_dim ${SUBSPACE_DIM} \
                --subspace_method ${SUBSPACE_METHOD} \
-               --eig_steps ${EIG_STEPS}"
+               --eig_steps ${EIG_STEPS}
+               --batch_size 128"
 SEED=6
 DATA=~/Datasets
 
