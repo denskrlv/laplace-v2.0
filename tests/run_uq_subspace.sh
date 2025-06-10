@@ -8,15 +8,14 @@ SUBSPACE_ARGS="--method subspace \
                --subspace_method ${SUBSPACE_METHOD} \
                --eig_steps ${EIG_STEPS}"
 SEED=6
-DATA_ROOT="$HOME/projects/laplace-v2.0/data" #vm data
-#DATA_ROOT="data"  #local data
+DATA=~/Datasets
 
 # python uq.py --data_root "$DATA" \
 #         --benchmark R-MNIST --model LeNet \
 #         --models_root models ${SUBSPACE_ARGS} --model_seed "$SEED"
 
 
-python uq.py --data_root "$DATA_ROOT" \
+python uq.py --data_root "$DATA" \
         --benchmark MNIST-OOD --model LeNet \
-        --models_root models "${SUBSPACE_ARGS}" --model_seed "$SEED"
+        --models_root models ${SUBSPACE_ARGS} --model_seed "$SEED"
 

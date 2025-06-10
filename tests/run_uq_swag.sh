@@ -18,5 +18,5 @@ DATA_ROOT="$HOME/projects/laplace-v2.0/data" #vm data
 
 python uq.py --data_root "$DATA_ROOT" \
         --benchmark MNIST-OOD --model LeNet \
-        --models_root models "${SUBSPACE_ARGS}" --model_seed "$SEED"
+        --models_root models ${SUBSPACE_ARGS} --model_seed "$SEED"
 
