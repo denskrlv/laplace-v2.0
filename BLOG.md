@@ -15,7 +15,7 @@ This distinction represents a key trade-off between the scope of the Bayesian tr
 
 Our project aims to reproduce and extend the findings of this paper. Our primary goal is to reproduce the out-of-distribution (OOD) detection results presented in **Table 1** of the paper:
 
-<img src="blog_images/table_1.png" alt="Original Table 1" width="250">
+<img src="blog_images/table_1.png" alt="Original Table 1" width="400">
 
 Using the authors' public codebase for the [algorithms(https://github.com/aleximmer/Laplace) and [experiments](https://github.com/runame/laplace-redux), we verify the reported performance and then extend the code and experiment pipeline through four distinct contributions, one for each team member:
 
@@ -71,7 +71,7 @@ We began by replicating their baseline results. Our findings confirm the paper's
 | VB                 | 73.3±1.4     | 95.9±0.3 | 1.76±0.01       |
 | HMC                | 69.2±3.2     | 96.1±0.3 | 0.66±0.01       |
 | SWG                | 76.8±0.0     | 96.3±0.0 | 1.25±0.0        |
-|:-------------------|:-------------|:---------|:----------------|
+|:------------------:|:------------:|:--------:|:---------------:|
 | LA                 | nan±nan      | nan±nan  | nan±nan         |
 | LA*                | 43.1±0.9     | 95.7±0.4 | 0.68±0.04       |
 | SUBSPACE LA        | 68.2±0.0     | 95.8±0.0 | 55.91±0.0       |
