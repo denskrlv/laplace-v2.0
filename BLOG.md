@@ -1,6 +1,11 @@
 # Laplace Redux – Effortless Bayesian Deep Learning
 
-*(Your table of contributors will go here)*
+| Name               | Student #    | Individual Component        |
+|:-------------------|:-------------|:----------------------------|
+| Serkan Akın        | xxxxxxx      | Testing additional datasets |
+| Samuel Goldie      | 6125735      | Subspace Laplace variant    |
+| Denis Krylov       | xxxxxxx      | Swag Laplace variant        |
+| Alberto Pasinato   | xxxxxxx      | Hyperparameter sensitivity  |
 
 ## Introduction
 
