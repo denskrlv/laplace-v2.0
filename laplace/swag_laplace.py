@@ -129,8 +129,8 @@ class SWAGLaplace(DiagLaplace):
             del self.swag._mean_list
 
         # Force garbage collection
-        gc.collect()
-        torch.cuda.empty_cache()
+        # gc.collect()
+        # torch.cuda.empty_cache()
 
         # Compute Laplace approximation using SWAG statistics
         self._compute_laplace_approximation()
