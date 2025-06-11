@@ -347,7 +347,7 @@ class DatafeedImage(torch.utils.data.Dataset):
 
 
 def load_corrupted_cifar10(severity, data_dir='data', batch_size=256, cuda=True,
-                           workers=1):
+                           workers=0):
     """
     Load corrupted CIFAR-10 dataset for a specific severity level.
     This version correctly handles the data format from the Zenodo download.
