@@ -132,8 +132,8 @@ def fit_models(args, train_loader, val_loader, device):
                 likelihood=args.likelihood,
                 prior_precision=args.prior_precision, # Handled by BaseLaplace via **kwargs
                 temperature=args.temperature,       # Handled by BaseLaplace via **kwargs
-                n_models=args.swag_n_snapshots,
-                max_num_models=args.swag_n_snapshots, # Ensure max_num_models accommodates n_models
+                n_models=20,
+                max_num_models=20, # Ensure max_num_models accommodates n_models
                 swa_lr=args.swag_lr, # Passed to SWAGLaplace __init__ for SWAG utility
                 # You might want to add args for swa_freq, start_epoch, var_clamp if needed
                 # e.g., swa_freq=getattr(args, 'swag_freq', 1),
@@ -160,7 +160,7 @@ def fit_models(args, train_loader, val_loader, device):
                 train_loader,
                 optimizer=optimizer,
                 criterion=criterion,
-                epochs=10,
+                epochs=1,
                 progress_bar=getattr(args, 'progress_bar', True) # Example for progress bar
             )
             model = model_instance # Ensure the 'model' variable for mixture_components is the SWAGLaplace instance
