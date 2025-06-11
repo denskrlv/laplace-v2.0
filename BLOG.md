@@ -2,18 +2,22 @@
 
 *(Your table of contributors will go here)*
 
-***
 ## Introduction
 
 The paper "Laplace Redux – Effortless Bayesian Deep Learning" \[1\] makes a compelling case for the Laplace Approximation (LA) as a practical and efficient method for uncertainty quantification in deep learning. The authors argue against common misconceptions that LA is expensive or yields inferior results, demonstrating that it is competitive with popular alternatives like deep ensembles and variational Bayes, often at a significantly lower computational cost. A key contribution of their work is the introduction of `laplace`, a user-friendly PyTorch library designed to make LA accessible to practitioners.
 
-**more details about full vs last layer laplace**
+The Laplace Approximation (LA) is a post-hoc technique, meaning it takes a trained network (a MAP estimate, $\theta_{MAP}$) and fits a Gaussian distribution around its parameters to capture uncertainty. A crucial choice is deciding *which* parameters to include in this probabilistic treatment. The paper primarily discusses two alternatives:
 
-Our project aims to reproduce and extend the findings of this paper. Our primary goal is to reproduce the out-of-distribution (OOD) detection results presented in **Table 1** of the paper.
+- **Full Laplace**: This is the most direct application, where the approximation is applied to *all* weights of the neural network. While this provides a posterior over the entire parameter space $\theta$, computing the full Hessian matrix, which is of size $D \times D$, where $D$ is the total number of parameters, is often computationally infeasible for modern deep neural networks. This approach, therefore, typically relies on structural approximations of the Hessian itself, like a diagonal or Kronecker-factored (KFAC) structure, to remain tractable.
+- **Last-Layer Laplace (LLLA)**: To drastically improve scalability, the paper highlights the *last-layer LA* as a highly effective and cost-efficient alternative. LLLA is a special case of subnetwork inference where only the weights of the final layer, $\theta_{last}$, are treated probabilistically. The preceding layers of the network are viewed as a fixed, deterministic feature extractor with their weights frozen at the MAP estimate. Since the number of parameters in the last layer is significantly smaller than in the full network, computing the corresponding Hessian is much cheaper, allowing for more expressive structures (like a full covariance over the last-layer weights) with minimal overhead.
 
-**original table image here**
+This distinction represents a key trade-off between the scope of the Bayesian treatment and its computational feasibility, with last-layer LA emerging as the most powerful and practical choice. The authors' experiments show that this simplified approach is not only more efficient but often leads to better performance, as it is less prone to underfitting than a full LA applied post-hoc.
 
-Using the authors' public codebase, we verify the reported performance and then extend the code and experiment pipeline through four distinct contributions, one for each team member:
+Our project aims to reproduce and extend the findings of this paper. Our primary goal is to reproduce the out-of-distribution (OOD) detection results presented in **Table 1** of the paper:
+
+<img src="blog_images/table_1.png" alt="isolated" width="250">
+
+Using the authors' public codebase for the [algorithms(https://github.com/aleximmer/Laplace) and [experiments](https://github.com/runame/laplace-redux), we verify the reported performance and then extend the code and experiment pipeline through four distinct contributions, one for each team member:
 
 - Implementing and evaluating a **new algorithm variant** (`SubspaceLaplace`).
 - Implementing and evaluating a **second new algorithm variant** (`SwagLaplace`).
@@ -24,7 +28,8 @@ This blog post details our methodology and presents our findings, ultimately ass
 
 ## Methodology
 
-Our reproduction and extension efforts are broken down into the following components.
+We began by collectively connecting the two cobebases together, as this did not work out-of-the-box and required many import fixes. Additionally, we had to adapt their training scripts to handle correctly both algorithm variants that we proposed.
+Our individual components and extension efforts are broken down into the following components.
 
 ### New Algorithm Variant: Subspace Laplace
 
@@ -57,7 +62,20 @@ The original experiment trains models on CIFAR-10 and MNIST and measures their *
 
 We began by replicating their baseline results. Our findings confirm the paper's claims, as we were able to reproduce the reported metrics with only marginal differences, typically within a $1-2%$ margin. These minor variations are expected due to differences in hardware and software environments. We decided to include *run time* as a metric in the tables, in order additionally to compare the performance of the new algorithm variants w.r.t. the *vanilla* laplace method.
 
-**table will go here**
+- MINST-OOD Table:
+
+| Method             | Confidence   | AUROC    | Test time (s)   |
+|:-------------------|:-------------|:---------|:----------------|
+| MAP                | 75.0±0.6     | 96.5±0.2 | 0.64±0.01       |
+| DE                 | 65.7±0.5     | 97.5±0.0 | 0.68±0.05       |
+| VB                 | 73.3±1.4     | 95.9±0.3 | 1.76±0.01       |
+| HMC                | 69.2±3.2     | 96.1±0.3 | 0.66±0.01       |
+| SWG                | 76.8±0.0     | 96.3±0.0 | 1.25±0.0        |
+|:-------------------|:-------------|:---------|:----------------|
+| LA                 | nan±nan      | nan±nan  | nan±nan         |
+| LA*                | 43.1±0.9     | 95.7±0.4 | 0.68±0.04       |
+| SUBSPACE LA        | 68.2±0.0     | 95.8±0.0 | 55.91±0.0       |
+| SWAG LA            | 11.8±0.0     | 95.9±0.0 | 56.37±0.0       |
 
 ### Extension 1: Subspace Laplace Results
 
