@@ -22,7 +22,7 @@ Our project aims to reproduce and extend the findings of this paper. Our primary
 
 <img src="blog_images/table_1.png" alt="Original Table 1" width="400">
 
-Using the authors' public codebase for the [algorithms(https://github.com/aleximmer/Laplace) and [experiments](https://github.com/runame/laplace-redux), we verify the reported performance and then extend the code and experiment pipeline through four distinct contributions, one for each team member:
+Using the authors' public codebase for the [algorithms](https://github.com/aleximmer/Laplace) and [experiments](https://github.com/runame/laplace-redux), we verify the reported performance and then extend the code and experiment pipeline through four distinct contributions, one for each team member:
 
 - Implementing and evaluating a **new algorithm variant** (`SubspaceLaplace`).
 - Implementing and evaluating a **second new algorithm variant** (`SwagLaplace`).
