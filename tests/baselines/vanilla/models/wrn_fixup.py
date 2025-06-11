@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from asdfghjkl.operations import Bias, Scale
+from asdl.operations import Bias, Scale
 
 
 ##########################################################################################
