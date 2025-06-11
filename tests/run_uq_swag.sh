@@ -7,7 +7,7 @@ SUBSPACE_ARGS="--method swag_laplace \
                --subspace_dim ${SUBSPACE_DIM} \
                --subspace_method ${SUBSPACE_METHOD} \
                --eig_steps ${EIG_STEPS}
-               --batch_size 8"
+               --batch_size 128"
 
 DATA_ROOT="$HOME/projects/laplace-v2.0/data" #vm data
 #DATA_ROOT="data"  #local data
