@@ -7,6 +7,7 @@ from torch.nn.utils import parameters_to_vector
 
 from laplace.baselaplace import DiagLaplace
 from laplace.utils.swag import SWAG
+import gc
 
 
 class SWAGLaplace(DiagLaplace):
@@ -100,6 +101,7 @@ class SWAGLaplace(DiagLaplace):
         progress_bar: bool = False,
         **kwargs
     ):
+        
         # First, train the model using SWAG
         self.swag.fit(
             train_loader=train_loader,
@@ -113,15 +115,23 @@ class SWAGLaplace(DiagLaplace):
         # Get SWAG statistics
         var, (U, S) = self.swag.get_covariance()
         
-        # Store SWAG mean
-        self.swag_mean = [mean.clone() for mean in self.swag.mean]
+        # Store SWAG mean (on CPU to save GPU memory)
+        self.swag_mean = [mean.clone().cpu() for mean in self.swag.mean]
         
-        # Store SWAG covariance (diagonal + low-rank)
+        # Store SWAG covariance (on CPU to save GPU memory)
         self.swag_covariance = {
-            'var': var,
-            'U': U,
-            'S': S
+            'var': [v.cpu() for v in var],
+            'U': [u.cpu() if u is not None else None for u in U],
+            'S': [s.cpu() if s is not None else None for s in S]
         }
+        
+        # Clear SWAG's internal storage to free memory
+        if hasattr(self.swag, '_mean_list'):
+            del self.swag._mean_list
+        
+        # Force garbage collection
+        gc.collect()
+        torch.cuda.empty_cache()
         
         # Compute Laplace approximation using SWAG statistics
         self._compute_laplace_approximation()
@@ -157,7 +167,18 @@ class SWAGLaplace(DiagLaplace):
             else:  # Handle the case where prior_precision might be a tensor
                 self.H += self.prior_precision.to(self._device).to(self._dtype)
 
-    def evaluate(self, data_loader: DataLoader) -> float:
+    def evaluate(self, data_loader: DataLoader, batch_size: int = None) -> float:
+        if batch_size is not None and batch_size < data_loader.batch_size:
+            # Create new DataLoader with smaller batch size
+            new_loader = DataLoader(
+                dataset=data_loader.dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                num_workers=data_loader.num_workers
+            )
+            data_loader = new_loader
+        
+        # Rest of evaluation code remains the same
         self.model.eval()
         correct = 0
         total = 0
