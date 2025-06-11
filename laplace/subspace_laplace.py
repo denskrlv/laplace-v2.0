@@ -6,7 +6,7 @@ import warnings
 import torch
 from torch import nn
 from torch.autograd import grad
-from torch.nn.utils import vector_to_parameters
+from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from torch.utils.data import DataLoader
 
 import tqdm
@@ -213,9 +213,9 @@ class SubspaceLaplace(ParametricLaplace):
         y: torch.Tensor,
         v: torch.Tensor,
     ) -> tuple[torch.Tensor, None]:
-        
+
         vector_to_parameters(v, self.params)
-        
+
         if hasattr(self.backend, "hvp"):
             # Backend might have a more efficient implementation
             H_v_flat = self.backend.hvp(X, y, v)
@@ -225,7 +225,7 @@ class SubspaceLaplace(ParametricLaplace):
         # Fallback using torch.autograd.grad
         out = self.model(X)
         loss = self.backend.lossfunc(out, y)
-        
+
         # first-order gradient
         g = grad(loss, self.params, create_graph=True)
         g_flat = _flatten(g)
@@ -236,9 +236,9 @@ class SubspaceLaplace(ParametricLaplace):
         # second-order gradient
         Hv = grad(dot, self.params, retain_graph=False)
         Hv_flat = _flatten(Hv).detach()
-        
+
         vector_to_parameters(self.mean, self.params) # Restore MAP
-        
+
         return Hv_flat, None
 
     def fit(self, train_loader, override=True, progress_bar=True):
@@ -247,6 +247,10 @@ class SubspaceLaplace(ParametricLaplace):
         2.  Estimate the K×K Hessian inside that sub-space *on the fly*
             with Hessian–vector products; never materialise the full matrix.
         """
+        # Overwrite self.mean with the current model parameters.
+        # This is a safeguard against the model being changed after init.
+        self.mean = parameters_to_vector(self.params).detach()
+
         if override:
             self._init_H()
 
@@ -288,7 +292,7 @@ class SubspaceLaplace(ParametricLaplace):
                 return # Exit on success
             except RuntimeError:
                 jitter *= 10
-        
+
         # If it fails after retries, raise error
         raise RuntimeError("Posterior precision is not positive definite.")
 
@@ -347,16 +351,16 @@ class SubspaceLaplace(ParametricLaplace):
     def functional_covariance(self, Js: torch.Tensor) -> torch.Tensor:
         n_batch, n_outs, n_params = Js.shape
         Js = Js.reshape(n_batch * n_outs, n_params)
-        
+
         # Project Jacobians into subspace
         J_proj = torch.matmul(Js, self.U)
-        
+
         # Covariance
         cov = torch.matmul(
             torch.matmul(J_proj, self.posterior_covariance),
             J_proj.t()
         )
-        
+
         return cov
 
     def _check_jacobians(self, Js: torch.Tensor) -> None:
