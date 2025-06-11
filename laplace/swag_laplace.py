@@ -128,41 +128,34 @@ class SWAGLaplace(DiagLaplace):
 
     def _compute_laplace_approximation(self):
         # Set the model parameters to SWAG mean
-        # self.swag_mean is a list of tensors, aligned with model.parameters()
         with torch.no_grad():
             for model_param, mean_val in zip(self.model.parameters(), self.swag_mean):
                 model_param.data.copy_(mean_val)
         
         # After setting model parameters to SWAG mean, update self.mean
-        # self.mean is the flattened vector of parameters, used by BaseLaplace/ParametricLaplace
         self.mean = parameters_to_vector(self.model.parameters()).detach()
 
-        # Initialize Hessian (which is a 1D vector for diagonal approximation)
-        self._init_H()  # self.H is now torch.zeros(n_params_total, device=self._device, dtype=self._dtype)
-
-    def sample(self, n_samples: int = 100, generator: torch.Generator | None = None) -> torch.Tensor:
-        # Ensure the model is fitted, which sets up self.mean and self.H
-        if not hasattr(self, 'H') or self.H is None:
-            raise RuntimeError("Laplace approximation not fitted. Call 'fit' first to compute H.")
+        # Initialize Hessian diagonal
+        self._init_H()
         
-        if self.mean is None:
-            # This should not happen if fit() was called, as _compute_laplace_approximation sets self.mean.
-            raise RuntimeError(
-                "Laplace mean (self.mean) is not set. "
-                "Ensure 'fit' has been called and that _compute_laplace_approximation "
-                "correctly sets self.mean."
-            )
+        # Convert SWAG diagonal variance to Hessian diagonal (precision)
+        # First, flatten the variance to match the shape of self.H
+        var_flattened = torch.cat([v.reshape(-1) for v in self.swag_covariance['var']])
         
-        return super().sample(n_samples=n_samples, generator=generator)
-
-    # def _add_laplace_correction(self):
-    #     """Add Laplace correction to the SWAG sample."""
-    #     # Sample from Laplace approximation
-    #     laplace_sample = super().sample(n_samples=1)
+        # Ensure no zeros (which would give infinite precision)
+        eps = 1e-6  # Small value to ensure numerical stability
+        var_flattened = torch.clamp(var_flattened, min=eps)
         
-    #     # Add correction to current parameters
-    #     for param, correction in zip(self.params, laplace_sample):
-    #         param.data += correction
+        # Convert variance to precision (H = 1/variance)
+        # This incorporates SWAG uncertainty into the Laplace approximation
+        self.H = 1.0 / var_flattened.to(self._device).to(self._dtype)
+        
+        # Optional: Add prior precision to posterior precision
+        if hasattr(self, 'prior_precision'):
+            if isinstance(self.prior_precision, float):
+                self.H += self.prior_precision
+            else:  # Handle the case where prior_precision might be a tensor
+                self.H += self.prior_precision.to(self._device).to(self._dtype)
 
     def evaluate(self, data_loader: DataLoader) -> float:
         self.model.eval()
