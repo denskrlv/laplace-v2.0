@@ -61,7 +61,13 @@ The core experiment we aim to reproduce is the out-of-distribution (OOD) detecti
 The paper defines confidence as the maximum value of the predictive probability vector. For example, if a model predicts probabilities of [0.7, 0.2, 0.1] for three classes, its confidence is 0.7 \[1\].
 The original experiment trains models on CIFAR-10 and MNIST and measures their *confidence* and *AUROC* scores on various OOD samples.
 
-**more information about the baselines**
+To properly contextualize the performance of the Laplace Approximation, the authors compare it against a set of popular baselines for uncertainty quantification:
+
+- **MAP (Maximum a Posteriori):** This is the standard, non-Bayesian baseline. It refers to a single neural network trained to its optimal point estimate using regularized empirical risk minimization, without any explicit uncertainty modeling.
+- **DE (Deep Ensemble):** This method involves training multiple identical networks from different random initializations. At test time, the predictions of these individual models are averaged to produce a final prediction and an uncertainty estimate derived from the variance in their outputs.
+- **VB (Variational Bayes):** A popular family of methods that approximates the true posterior with a simpler, tractable distribution (e.g., a mean-field Gaussian). Unlike LA, it requires significant changes to the training procedure to optimize the parameters of this approximate posterior. The paper uses the *flipout* estimator for its VB baseline.
+- **HMC (Hamiltonian Monte Carlo):** Specifically, the authors use CSGHMC (Cyclical Stochastic-Gradient Hamiltonian Monte Carlo), a more advanced method. It aims to draw samples from the true posterior distribution, but is notoriously expensive to run.
+- **SWG (Stochastic Weight Averaging Gaussian):** SWAG approximates the posterior by fitting a Gaussian distribution to the moments of the weights visited by SGD during the later stages of training. It provides a simple way to get a Gaussian posterior but can be costly due to the need for multiple model snapshots.
 
 ### Reproduction of Table 1
 
@@ -99,6 +105,7 @@ We began by replicating their baseline results. Our findings confirm the paper's
 | **SUBSPACE LA**    | nan±nan      | nan±nan  | nan±nan         |
 | **SWAG LA**        | nan±nan      | nan±nan  | nan±nan         |
 
+TODO: need to decide which "type" of tables is best (split -the previous ones- or combined- the next one)
 
 | Method | Confidence (MNIST) | Confidence (CIFAR-10) | AUROC (MNIST) | AUROC (CIFAR-10) | Test time (s) (MNIST) | Test time (s) (CIFAR-10) |
 |:---|:---:|:---:|:---:|:---:|:---:|:---:|
