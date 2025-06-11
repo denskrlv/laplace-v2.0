@@ -133,6 +133,7 @@ dmypy.json
 
 models/*/
 results/
+results_old/
 hessians/
 logs/
 scripts/
