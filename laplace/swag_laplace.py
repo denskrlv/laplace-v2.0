@@ -136,35 +136,35 @@ class SWAGLaplace(DiagLaplace):
         self._compute_laplace_approximation()
 
     def _compute_laplace_approximation(self):
-        # Set the model parameters to SWAG mean
+        # Process on CPU to save VRAM, then transfer only the final results
         with torch.no_grad():
+            # Set the model parameters to SWAG mean
             for model_param, mean_val in zip(self.model.parameters(), self.swag_mean):
-                model_param.data.copy_(mean_val)
+                model_param.data.copy_(mean_val.to(self.device))
+            
+            # Update self.mean
+            self.mean = parameters_to_vector(self.model.parameters()).detach()
 
-        # After setting model parameters to SWAG mean, update self.mean
-        self.mean = parameters_to_vector(self.model.parameters()).detach()
-
-        # Initialize Hessian diagonal
-        self._init_H()
-
-        # Convert SWAG diagonal variance to Hessian diagonal (precision)
-        # First, flatten the variance to match the shape of self.H
-        var_flattened = torch.cat([v.reshape(-1) for v in self.swag_covariance['var']])
-
-        # Ensure no zeros (which would give infinite precision)
-        eps = 1e-6  # Small value to ensure numerical stability
-        var_flattened = torch.clamp(var_flattened, min=eps)
-
-        # Convert variance to precision (H = 1/variance)
-        # This incorporates SWAG uncertainty into the Laplace approximation
-        self.H = 1.0 / var_flattened.to(self._device).to(self._dtype)
-
-        # Optional: Add prior precision to posterior precision
-        if hasattr(self, 'prior_precision'):
-            if isinstance(self.prior_precision, float):
-                self.H += self.prior_precision
-            else:  # Handle the case where prior_precision might be a tensor
-                self.H += self.prior_precision.to(self._device).to(self._dtype)
+            # Process covariance on CPU
+            var_list = self.swag_covariance['var']
+            var_flattened = torch.cat([v.reshape(-1) for v in var_list])
+            
+            # Ensure no zeros
+            eps = 1e-6
+            var_flattened = torch.clamp(var_flattened, min=eps)
+            
+            # Convert variance to precision on CPU
+            h_cpu = 1.0 / var_flattened
+            
+            # Only move to device at the end
+            self.H = h_cpu.to(self._device, self._dtype)
+            
+            # Add prior precision
+            if hasattr(self, 'prior_precision'):
+                if isinstance(self.prior_precision, float):
+                    self.H += self.prior_precision
+                else:
+                    self.H += self.prior_precision.to(self._device, self._dtype)
 
     def evaluate(self, data_loader: DataLoader, batch_size: int = None) -> float:
         if batch_size is not None and batch_size < data_loader.batch_size:
