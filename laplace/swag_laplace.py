@@ -185,7 +185,11 @@ class SWAGLaplace(DiagLaplace):
         with torch.no_grad():
             for inputs, targets in data_loader:
                 inputs, targets = inputs.to(self.device), targets.to(self.device)
-                outputs = self.model(inputs)
+
+                with autocast():
+                    outputs = self.model(inputs)
+                
+                # outputs = self.model(inputs)
                 _, predicted = outputs.max(1)
                 total += targets.size(0)
                 correct += predicted.eq(targets).sum().item()

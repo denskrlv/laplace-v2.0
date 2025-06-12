@@ -7,6 +7,7 @@ from typing import Optional, Tuple
 from tqdm import tqdm
 import torch
 import torch.nn as nn
+from torch.cuda.amp import autocast, GradScaler
 from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
@@ -195,11 +196,12 @@ class SWAG:
             Whether to show progress bar
         """
         self.model.train()
+
+        scaler = GradScaler()
         
         # Import tqdm if progress bar is requested
         if progress_bar:
             try:
-                from tqdm import tqdm
                 epoch_iter = tqdm(range(start_epoch, epochs), desc="Epochs")
             except ImportError:
                 print("Warning: tqdm not installed. Progress bar disabled.")
@@ -215,10 +217,21 @@ class SWAG:
             for batch_idx, (data, target) in enumerate(train_loader):
                 data, target = data.to(self.device), target.to(self.device)
                 optimizer.zero_grad()
-                output = self.model(data)
-                loss = criterion(output, target)
-                loss.backward()
-                optimizer.step()
+
+                # Forward pass with autocasting
+                with autocast():
+                    output = self.model(data)
+                    loss = criterion(output, target)
+                
+                # Backward pass with scaling
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+                
+                # output = self.model(data)
+                # loss = criterion(output, target)
+                # loss.backward()
+                # optimizer.step()
                 
                 # Update running loss
                 running_loss += loss.item()
