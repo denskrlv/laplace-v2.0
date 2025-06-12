@@ -14,10 +14,11 @@ MNIST_ARGS="--method subspace \
 # Arguments for CIFAR-10-C (use 'nn' to avoid memory error)
 CIFAR_ARGS="--method subspace \
             --pred_type nn \
+            --link_approx mc \
             --subspace_dim ${SUBSPACE_DIM} \
             --subspace_method ${SUBSPACE_METHOD} \
             --eig_steps ${EIG_STEPS} \
-            --batch_size 32" # Keep a small batch size for CIFAR-10
+            --batch_size 32"
 
 DATA_ROOT="$HOME/projects/laplace-v2.0/data"
 
