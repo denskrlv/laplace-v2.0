@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     python3-dev \
     vim \
-    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt .
