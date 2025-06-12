@@ -3,8 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-
-#data
 data
 laplace-redux-main
 
@@ -177,3 +175,7 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Data
+data/
+model.zip

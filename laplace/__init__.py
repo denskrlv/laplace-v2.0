@@ -26,6 +26,9 @@ from laplace.lllaplace import (
 )
 from laplace.marglik_training import marglik_training
 from laplace.subnetlaplace import DiagSubnetLaplace, FullSubnetLaplace, SubnetLaplace
+
+from laplace.subspace_laplace import SubspaceLaplace
+
 from laplace.utils.enums import (
     HessianStructure,
     Likelihood,
@@ -53,6 +56,9 @@ __all__ = [
     "SubnetLaplace",  # base-class subnetwork
     "FullSubnetLaplace",
     "DiagSubnetLaplace",  # subnetwork
+
+    "SubspaceLaplace",
+
     "marglik_training",
     # Enums
     "SubsetOfWeights",
