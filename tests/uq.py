@@ -160,7 +160,7 @@ def fit_models(args, train_loader, val_loader, device):
                 train_loader,
                 optimizer=optimizer,
                 criterion=criterion,
-                epochs=10,
+                epochs=1,
                 progress_bar=getattr(args, 'progress_bar', True) # Example for progress bar
             )
             model = model_instance # Ensure the 'model' variable for mixture_components is the SWAGLaplace instance
