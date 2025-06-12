@@ -1,10 +1,13 @@
 # laplace-v2.0
 
-To run experiments, follow these steps:
+## How to Run
 
-1. Download the models from this [Google Drive link](https://drive.google.com/file/d/17cI3dhconEwLj5J3XTEgbPlzYTUoSxAk/view?usp=share_link)
-2. Replace the downloaded `models` folder with the one in location `laplace-v2.0/tests/models`
-3. Run the following command to execute the tests:
-    - Baselines: `./tests/run_uq_baselines.sh`
-    - Laplace: `./tests/run_uq_laplace.sh`
-    - Subspace Laplace: `./tests/run_uq_subspace.sh`
+1. Make sure you have Docker and Docker Compose installed
+2. Run the setup script: `./setup_docker.sh`
+3. Download models from [Google Drive](https://drive.google.com/file/d/17cI3dhconEwLj5J3XTEgbPlzYTUoSxAk/view?usp=share_link)
+4. Extract them to the `models` directory
+5. Build and start the container: `docker-compose up -d`
+6. Run experiments:
+   - `docker-compose exec laplace ./tests/run_uq_baselines.sh`
+   - `docker-compose exec laplace ./tests/run_uq_laplace.sh`
+   - `docker-compose exec laplace ./tests/run_uq_subspace.sh`
