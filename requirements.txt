@@ -29,7 +29,7 @@ iniconfig==2.1.0
 Jinja2==3.1.6
 joblib==1.5.1
 kiwisolver==1.4.8
--e git+https://github.com/denskrlv/laplace-v2.0.git@13e5c4ce9fff204fea0a49024a07971920faa9ef#egg=laplace
+#-e git+https://github.com/denskrlv/laplace-v2.0.git@13e5c4ce9fff204fea0a49024a07971920faa9ef#egg=laplace
 lightning-utilities==0.14.3
 littleutils==0.2.4
 lmdb==1.6.2
