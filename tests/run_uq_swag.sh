@@ -21,6 +21,6 @@ DATA_ROOT="$HOME/projects/laplace-v2.0/data" #vm data
 # # =========================================================
 for seed in 6 12 13 523 972394; do
   python3 uq.py --data_root "$DATA_ROOT" \
-          --benchmark CIFAR-10-C --model WRN16-4 \
+          --benchmark CIFAR-10-OOD --model WRN16-4 \
           --models_root models ${SUBSPACE_ARGS} --model_seed "$seed"
 done
