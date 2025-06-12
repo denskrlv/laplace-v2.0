@@ -132,8 +132,8 @@ def fit_models(args, train_loader, val_loader, device):
                 likelihood=args.likelihood,
                 prior_precision=args.prior_precision, # Handled by BaseLaplace via **kwargs
                 temperature=args.temperature,       # Handled by BaseLaplace via **kwargs
-                n_models=20,
-                max_num_models=20, # Ensure max_num_models accommodates n_models
+                n_models=args.swag_n_snapshots,
+                max_num_models=args.swag_n_snapshots, # Ensure max_num_models accommodates n_models
                 swa_lr=args.swag_lr, # Passed to SWAGLaplace __init__ for SWAG utility
                 # You might want to add args for swa_freq, start_epoch, var_clamp if needed
                 # e.g., swa_freq=getattr(args, 'swag_freq', 1),
