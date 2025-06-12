@@ -6,7 +6,7 @@ import warnings
 import torch
 from torch import nn
 from torch.autograd import grad
-from torch.nn.utils import vector_to_parameters
+from torch.nn.utils import parameters_to_vector, vector_to_parameters
 from torch.utils.data import DataLoader
 
 import tqdm
@@ -69,21 +69,21 @@ class SubspaceLaplace(ParametricLaplace):
     _key = ("all", "subspace")
 
     def __init__(
-            self,
-            model: nn.Module,
-            likelihood: Likelihood | str,
-            subspace_dim: int = 20,
-            subspace_method: Literal["hessian_eig", "pca_sgd", "random"] = "hessian_eig",
-            n_eig_samples: int = 10,
-            sigma_noise: float | torch.Tensor = 1.0,
-            prior_precision: float | torch.Tensor = 1.0,
-            prior_mean: float | torch.Tensor = 0.0,
-            temperature: float = 1.0,
-            enable_backprop: bool = False,
-            dict_key_x: str = "input_ids",
-            dict_key_y: str = "labels",
-            backend: Type[CurvatureInterface] | None = None,
-            backend_kwargs: dict[str, Any] | None = None,
+        self,
+        model: nn.Module,
+        likelihood: Likelihood | str,
+        subspace_dim: int = 20,
+        subspace_method: Literal["hessian_eig", "pca_sgd", "random"] = "hessian_eig",
+        n_eig_samples: int = 10,
+        sigma_noise: float | torch.Tensor = 1.0,
+        prior_precision: float | torch.Tensor = 1.0,
+        prior_mean: float | torch.Tensor = 0.0,
+        temperature: float = 1.0,
+        enable_backprop: bool = False,
+        dict_key_x: str = "input_ids",
+        dict_key_y: str = "labels",
+        backend: Type[CurvatureInterface] | None = None,
+        backend_kwargs: dict[str, Any] | None = None,
     ):
 
         self.subspace_dim = subspace_dim
@@ -117,10 +117,10 @@ class SubspaceLaplace(ParametricLaplace):
         self._posterior_scale = None
 
     def _curv_closure(
-            self,
-            X: torch.Tensor | MutableMapping[str, Any],
-            y: torch.Tensor,
-            N: int,
+        self,
+        X: torch.Tensor | MutableMapping[str, Any],
+        y: torch.Tensor,
+        N: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         # Use the same “full” Hessian/GGN as FullLaplace does
         return self.backend.full(X, y, N=N)
@@ -178,9 +178,9 @@ class SubspaceLaplace(ParametricLaplace):
                 for i in range(k):
                     q = Q[:, i]
                     H_batch_q, _ = self._hessian_vector_product(X, y, q)
-                    HQ[:, i] += H_batch_q * len(X)  # Multiply by batch size
+                    HQ[:, i] += H_batch_q * len(X) # Multiply by batch size
 
-            HQ /= N  # Average over dataset size
+            HQ /= N # Average over dataset size
 
             # Orthogonalize for the next step
             Q, _ = torch.linalg.qr(HQ)
@@ -208,10 +208,10 @@ class SubspaceLaplace(ParametricLaplace):
         return U
 
     def _hessian_vector_product(
-            self,
-            X: torch.Tensor | MutableMapping[str, Any],
-            y: torch.Tensor,
-            v: torch.Tensor,
+        self,
+        X: torch.Tensor | MutableMapping[str, Any],
+        y: torch.Tensor,
+        v: torch.Tensor,
     ) -> tuple[torch.Tensor, None]:
 
         vector_to_parameters(v, self.params)
@@ -219,7 +219,7 @@ class SubspaceLaplace(ParametricLaplace):
         if hasattr(self.backend, "hvp"):
             # Backend might have a more efficient implementation
             H_v_flat = self.backend.hvp(X, y, v)
-            vector_to_parameters(self.mean, self.params)  # Restore MAP
+            vector_to_parameters(self.mean, self.params) # Restore MAP
             return H_v_flat, None
 
         # Fallback using torch.autograd.grad
@@ -237,7 +237,7 @@ class SubspaceLaplace(ParametricLaplace):
         Hv = grad(dot, self.params, retain_graph=False)
         Hv_flat = _flatten(Hv).detach()
 
-        vector_to_parameters(self.mean, self.params)  # Restore MAP
+        vector_to_parameters(self.mean, self.params) # Restore MAP
 
         return Hv_flat, None
 
@@ -247,6 +247,10 @@ class SubspaceLaplace(ParametricLaplace):
         2.  Estimate the K×K Hessian inside that sub-space *on the fly*
             with Hessian–vector products; never materialise the full matrix.
         """
+        # Overwrite self.mean with the current model parameters.
+        # This is a safeguard against the model being changed after init.
+        self.mean = parameters_to_vector(self.params).detach()
+
         if override:
             self._init_H()
 
@@ -285,7 +289,7 @@ class SubspaceLaplace(ParametricLaplace):
                 L = torch.linalg.cholesky(posterior_precision + jitter * torch.eye(
                     self.subspace_dim, device=self._device, dtype=self._dtype))
                 self._posterior_scale = torch.linalg.inv(L.T)
-                return  # Exit on success
+                return # Exit on success
             except RuntimeError:
                 jitter *= 10
 
@@ -312,7 +316,7 @@ class SubspaceLaplace(ParametricLaplace):
         )
 
     def sample(
-            self, n_samples: int = 100, generator: torch.Generator | None = None
+        self, n_samples: int = 100, generator: torch.Generator | None = None
     ) -> torch.Tensor:
         # Draw samples in the subspace: z ~ N(0, P_z^-1)
         scale = self.posterior_scale
