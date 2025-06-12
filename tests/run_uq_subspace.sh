@@ -18,7 +18,7 @@ CIFAR_ARGS="--method subspace \
             --subspace_dim ${SUBSPACE_DIM} \
             --subspace_method ${SUBSPACE_METHOD} \
             --eig_steps ${EIG_STEPS} \
-            --batch_size 32"
+            --batch_size 128"
 
 DATA_ROOT="$HOME/projects/laplace-v2.0/data"
 
