@@ -27,7 +27,7 @@ COPY . .
 RUN pip3 install -e .
 
 # Set up directory for models
-RUN mkdir -p tests/models
+RUN #mkdir -p tests/models
 
 # Default command: bash
 CMD ["/bin/bash"]
