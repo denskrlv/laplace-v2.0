@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import torch
 import torch.nn as nn
+from torch.cuda.amp import autocast, GradScaler
 from torch.utils.data import DataLoader
 from torch.nn.utils import parameters_to_vector
 
