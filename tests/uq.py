@@ -26,12 +26,12 @@ def main(args):
     util.set_seed(args.seed)
 
     # load in-distribution data
-    in_data_loaders, ids, no_loss_acc = du.get_in_distribution_data_loaders(
+    in_data_loaders, ids, no_loss_acc, num_features= du.get_in_distribution_data_loaders(
         args, device)
     train_loader, val_loader, in_test_loader = in_data_loaders
 
     # fit models
-    mixture_components = fit_models(args, train_loader, val_loader, device)
+    mixture_components = fit_models(args, train_loader, val_loader, device, num_features)
 
     # evaluate models
     metrics = evaluate_models(
@@ -41,15 +41,16 @@ def main(args):
     util.save_results(args, metrics)
 
 
-def fit_models(args, train_loader, val_loader, device):
+def fit_models(args, train_loader, val_loader, device, num_features=None):
     """ load pre-trained weights, fit inference methods, and tune hyperparameters """
 
     mixture_components = list()
     for model_idx in range(args.nr_components):
-        model = util.load_pretrained_model(args, model_idx, device)
+        # THE FIX IS HERE: We now pass 'num_features' to the model loader.
+        model = util.load_pretrained_model(args, model_idx, device, num_features)
 
         if args.method in ['laplace', 'mola']:
-            if type(args.prior_precision) is str: # file path
+            if type(args.prior_precision) is str:  # file path
                 prior_precision = torch.load(args.prior_precision, map_location=device)
             elif type(args.prior_precision) is float:
                 prior_precision = args.prior_precision
@@ -62,7 +63,7 @@ def fit_models(args, train_loader, val_loader, device):
                 optional_args['last_layer_name'] = args.last_layer_name
 
             print('Fitting Laplace approximation...')
-            
+
             model = Laplace(model, args.likelihood,
                             subset_of_weights=args.subset_of_weights,
                             hessian_structure=args.hessian_structure,
@@ -75,7 +76,7 @@ def fit_models(args, train_loader, val_loader, device):
                 if (type(prior_precision) is float) and (args.prior_structure != 'scalar'):
                     n = model.n_params if args.prior_structure == 'all' else model.n_layers
                     prior_precision = prior_precision * torch.ones(n, device=device)
-                
+
                 print('Optimizing prior precision for Laplace approximation...')
 
                 verbose_prior = args.prior_structure == 'scalar'
@@ -94,10 +95,10 @@ def fit_models(args, train_loader, val_loader, device):
 
             model = fit_swag_and_precompute_bn_params(
                 model, device, train_loader, args.swag_n_snapshots,
-                args.swag_lr, args.swag_c_epochs, args.swag_c_batches, 
+                args.swag_lr, args.swag_c_epochs, args.swag_c_batches,
                 args.data_parallel, args.n_samples, args.swag_bn_update_subset)
 
-        elif (args.method == 'map' and args.likelihood == 'classification' 
+        elif (args.method == 'map' and args.likelihood == 'classification'
               and args.use_temperature_scaling):
             print("Fitting temperature scaling model on validation data...")
             all_y_prob = [model(d[0].to(device)).detach().cpu() for d in val_loader]
@@ -124,50 +125,48 @@ def fit_models(args, train_loader, val_loader, device):
 
         elif args.method == 'swag_laplace':
             print("Fitting SWAG-Laplace...")
-            
-            # Initialize the SWAGLaplace instance with the loaded neural network model
-            # The 'model' variable will now refer to the SWAGLaplace instance.
+
             model_instance = SWAGLaplace(
-                model,  # Pass the actual nn.Module
+                model,
                 likelihood=args.likelihood,
-                prior_precision=args.prior_precision, # Handled by BaseLaplace via **kwargs
-                temperature=args.temperature,       # Handled by BaseLaplace via **kwargs
-                n_models=args.swag_n_snapshots,
-                max_num_models=args.swag_n_snapshots, # Ensure max_num_models accommodates n_models
-                swa_lr=args.swag_lr, # Passed to SWAGLaplace __init__ for SWAG utility
-                # You might want to add args for swa_freq, start_epoch, var_clamp if needed
-                # e.g., swa_freq=getattr(args, 'swag_freq', 1),
+                prior_precision=args.prior_precision,
+                temperature=args.temperature,
+                n_models=20,
+                max_num_models=20,
+                swa_lr=args.swag_lr,
                 device=device
             )
 
-            # Create optimizer for the SWAG training phase
-            # It should optimize the parameters of the underlying nn.Module
             optimizer = torch.optim.SGD(
-                model.parameters(), # Use parameters of the original nn_model
-                lr=1e-4, # Learning rate for SWAG-Laplace
-                momentum=0.9 # A common momentum value for SWAG's SGD
+                model.parameters(),
+                lr=1e-4,
+                momentum=0.9
             )
-            
-            # Create criterion
+
             if args.likelihood == 'classification':
                 criterion = nn.CrossEntropyLoss()
             elif args.likelihood == 'regression':
-                criterion = nn.MSELoss() # Adjust if a different loss is standard for regression in your setup
+                criterion = nn.MSELoss()
             else:
                 raise ValueError(f"Unsupported likelihood for SWAG-Laplace criterion: {args.likelihood}")
-            
+
             model_instance.fit(
                 train_loader,
                 optimizer=optimizer,
                 criterion=criterion,
-                epochs=1,
-                progress_bar=getattr(args, 'progress_bar', True) # Example for progress bar
+                epochs=10,
+                progress_bar=getattr(args, 'progress_bar', True)
             )
-            model = model_instance # Ensure the 'model' variable for mixture_components is the SWAGLaplace instance
+            model = model_instance
 
         if args.likelihood == 'regression' and args.sigma_noise is None:
-            print("Optimizing noise standard deviation on validation data...")
-            args.sigma_noise = wu.optimize_noise_standard_deviation(model, val_loader, device)
+            # This part is likely not hit for the Adult dataset but good to keep.
+            if args.method == 'map':
+                # For MAP, we can't optimize sigma_noise directly on the model object
+                print("Skipping sigma_noise optimization for MAP method.")
+            else:
+                print("Optimizing noise standard deviation on validation data...")
+                model.optimize_sigma(val_loader=val_loader)
 
         mixture_components.append(model)
 
@@ -242,7 +241,7 @@ if __name__ == "__main__":
                                  'MNIST-OOD', 'FMNIST-OOD', 'CIFAR-10-OOD',
                                  'WILDS-camelyon17', 'WILDS-iwildcam',
                                  'WILDS-civilcomments', 'WILDS-amazon',
-                                 'WILDS-fmow', 'WILDS-poverty'],
+                                 'WILDS-fmow', 'WILDS-poverty', 'Adult'],
                         default='CIFAR-10-C', help='name of benchmark')
     parser.add_argument('--data_root', type=str, default='./data',
                         help='root of dataset')
@@ -330,7 +329,7 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, default='WRN16-4',
                         choices=['LeNet', 'WRN16-4', 'WRN16-4-fixup', 'WRN50-2',
                                  'LeNet-BBB-reparam', 'LeNet-BBB-flipout', 'LeNet-CSGHMC',
-                                 'WRN16-4-BBB-reparam', 'WRN16-4-BBB-flipout', 'WRN16-4-CSGHMC'],
+                                 'WRN16-4-BBB-reparam', 'WRN16-4-BBB-flipout', 'WRN16-4-CSGHMC', 'MLPTabular'],
                          help='the neural network model architecture')
     parser.add_argument('--no_dropout', action='store_true', help='only for WRN-fixup.')
     parser.add_argument('--data_parallel', action='store_true',
@@ -348,6 +347,12 @@ if __name__ == "__main__":
                         help='YAML config file path')
     parser.add_argument('--run_name', type=str, help='overwrite save file name')
     parser.add_argument('--noda', action='store_true')
+
+    parser.add_argument('--domain_shift_gender', type=str, default=None,
+                        choices=['male_to_female', 'female_to_male'],
+                        help='Specify domain shift experiment for Adult dataset')
+    parser.add_argument('--noise_intensity', type=float, default=0.0,
+                        help='Std. dev. of Gaussian noise to add to numeric test features')
 
     args = parser.parse_args()
     args_dict = vars(args)

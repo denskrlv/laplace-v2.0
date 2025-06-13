@@ -19,6 +19,7 @@ try:
 except ModuleNotFoundError:
     pass
 
+from tests.baselines.vanilla.models.mlp_tabular import MLPTabular
 
 def set_seed(seed):
     np.random.seed(seed)
@@ -29,7 +30,7 @@ def set_seed(seed):
         cudnn.benchmark = False
 
 
-def load_pretrained_model(args, model_idx, device):
+def load_pretrained_model(args, model_idx=None, device='cpu', num_features=None):
     """ Choose appropriate architecture and load pre-trained weights """
 
     if 'WILDS' in args.benchmark:
@@ -37,57 +38,52 @@ def load_pretrained_model(args, model_idx, device):
         model = wu.load_pretrained_wilds_model(dataset, args.models_root,
                                                device, model_idx, args.model_seed)
     else:
-        model = get_model(args.model, no_dropout=args.no_dropout, device=device)#.to(device)
-        if args.benchmark in ['R-MNIST', 'MNIST-OOD']:
-            fpath = os.path.join(args.models_root, 'lenet_mnist/lenet_mnist_{}_{}')
-        elif args.benchmark in ['R-FMNIST', 'FMNIST-OOD']:
-            fpath = os.path.join(args.models_root, 'lenet_fmnist/lenet_fmnist_{}.pt')
-        elif args.benchmark in ['CIFAR-10-C', 'CIFAR-10-OOD']:
-            fpath = os.path.join(args.models_root, 'wrn16_4_cifar10/wrn_16-4_cifar10_{}_{}')
-        elif args.benchmark == 'ImageNet-C':
-            fpath = os.path.join(args.models_root, 'wrn50_2_imagenet/wrn_50-2_imagenet_{}_{}')
+        # Pass num_features to get_model
+        model = get_model(args.model, num_features=num_features, no_dropout=args.no_dropout, device=device)
 
-        if args.method == 'csghmc':
-            fname = fpath.format(args.model_seed, model_idx+1)
-            state_dicts = torch.load(fname, map_location=device)
-
-            for m, state_dict in zip(model, state_dicts):
-                m.load_state_dict(state_dict)
-                m.to(device)
-
-            if args.data_parallel:
-                model = [torch.nn.DataParallel(m) for m in model]
+        if args.benchmark == 'Adult':
+            # For the Adult dataset, we don't load a pre-trained model.
+            # We will train it from scratch.
+            pass
         else:
-            if args.model_path is not None:
-                model.load_state_dict(torch.load(args.model_path, map_location=device),
-                                      strict=False)
+            # Logic for loading pre-trained image models
+            if args.benchmark in ['R-MNIST', 'MNIST-OOD']:
+                fpath = os.path.join(args.models_root, 'lenet_mnist/lenet_mnist_{}_{}')
+            elif args.benchmark in ['R-FMNIST', 'FMNIST-OOD']:
+                fpath = os.path.join(args.models_root, 'lenet_fmnist/lenet_fmnist_{}.pt')
+            elif args.benchmark in ['CIFAR-10-C', 'CIFAR-10-OOD']:
+                fpath = os.path.join(args.models_root, 'wrn16_4_cifar10/wrn_16-4_cifar10_{}_{}')
+            elif args.benchmark == 'ImageNet-C':
+                fpath = os.path.join(args.models_root, 'wrn50_2_imagenet/wrn_50-2_imagenet_{}_{}')
+
+            if args.method == 'csghmc':
+                fname = fpath.format(args.model_seed, model_idx+1)
+                state_dicts = torch.load(fname, map_location=device)
+                for m, state_dict in zip(model, state_dicts):
+                    m.load_state_dict(state_dict)
+                    m.to(device)
             else:
-                fname = (fpath.format(args.model_seed, model_idx+1) if 'FMNIST' not in args.benchmark 
-                         else fpath.format(args.model_seed))
-                load_model = (
-                    model.net
-                    if args.benchmark in ['R-MNIST', 'MNIST-OOD'] and 'BBB' not in args.model
-                    else model
-                )
-
-                # Fix for BBB model loading
-                state_dict = torch.load(fname, map_location=device)
-                if 'BBB' in args.model:
-                    # For Bayesian models, load with strict=False to ignore mismatches in prior parameters etc.
-                    load_model.load_state_dict(state_dict, strict=False)
+                if args.model_path is not None:
+                    model.load_state_dict(torch.load(args.model_path, map_location=device), strict=False)
                 else:
-                    # For standard models, maintain strict loading
-                    load_model.load_state_dict(state_dict)
-
-            model.to(device)
+                    fname = (fpath.format(args.model_seed, model_idx+1) if 'FMNIST' not in args.benchmark
+                             else fpath.format(args.model_seed))
+                    load_model = model.net if hasattr(model, 'net') else model
+                    state_dict = torch.load(fname, map_location=device)
+                    load_model.load_state_dict(state_dict, strict=False)
+                model.to(device)
 
     if args.data_parallel and (args.method != 'csghmc'):
         model = torch.nn.DataParallel(model)
     return model
 
 
-def get_model(model_class, no_dropout=False, device=None):
-    if model_class == 'MLP':
+def get_model(model_class, no_dropout=False, device=None, num_features=None):
+    if model_class == 'MLPTabular':
+        if num_features is None:
+            raise ValueError('num_features must be specified for MLPTabular model.')
+        model = MLPTabular(num_features=num_features, num_classes=2).to(device)
+    elif model_class == 'MLP':
         model = mlp.MLP([784, 100, 100, 10], act='relu')
     elif model_class == 'LeNet':
         model = lenet.LeNet()

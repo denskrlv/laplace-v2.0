@@ -1,17 +1,23 @@
 import numpy as np
 import os
 from PIL import Image
+import pandas as pd
 
 import torch
 import torch.utils.data as data_utils
 import torchvision.transforms.functional as TF
 from torchvision import transforms, datasets
 
+from sklearn.model_selection import train_test_split as sk_train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+
 import utils.wilds_utils as wu
 
 
 def get_in_distribution_data_loaders(args, device):
     """ load in-distribution datasets and return data loaders """
+    num_features = None  # Default value
 
     if args.benchmark in ['R-MNIST', 'MNIST-OOD']:
         if args.benchmark == 'R-MNIST':
@@ -29,6 +35,7 @@ def get_in_distribution_data_loaders(args, device):
             val_size=args.val_set_size,
             download=args.download,
             device=device)
+        return (train_loader, val_loader, in_test_loader), ids, no_loss_acc, num_features
 
     elif args.benchmark in ['R-FMNIST', 'FMNIST-OOD']:
         if args.benchmark == 'R-FMNIST':
@@ -46,6 +53,7 @@ def get_in_distribution_data_loaders(args, device):
             val_size=args.val_set_size,
             download=args.download,
             device=device)
+        return (train_loader, val_loader, in_test_loader), ids, no_loss_acc, num_features
 
     elif args.benchmark in ['CIFAR-10-C', 'CIFAR-10-OOD']:
         if args.benchmark == 'CIFAR-10-C':
@@ -64,6 +72,7 @@ def get_in_distribution_data_loaders(args, device):
             val_size=args.val_set_size,
             download=args.download,
             data_augmentation=not args.noda)
+        return (train_loader, val_loader, in_test_loader), ids, no_loss_acc, num_features
 
     elif args.benchmark == 'ImageNet-C':
         no_loss_acc = False
@@ -74,6 +83,7 @@ def get_in_distribution_data_loaders(args, device):
             batch_size=args.batch_size,
             train_batch_size=args.batch_size,
             val_size=args.val_set_size)
+        return (train_loader, val_loader, in_test_loader), ids, no_loss_acc, num_features
 
     elif 'WILDS' in args.benchmark:
         dataset = args.benchmark[6:]
@@ -81,9 +91,24 @@ def get_in_distribution_data_loaders(args, device):
         ids = [f'{dataset}-id', f'{dataset}-ood']
         train_loader, val_loader, in_test_loader = wu.get_wilds_loaders(
             dataset, args.data_root, args.data_fraction, args.model_seed)
+        return (train_loader, val_loader, in_test_loader), ids, no_loss_acc, num_features
 
-    return (train_loader, val_loader, in_test_loader), ids, no_loss_acc
+    elif args.benchmark == 'Adult':
+        no_loss_acc = False
+        # For the Adult dataset, the concept of OOD IDs is handled by domain_shift_gender and noise_intensity args
+        # We can just use placeholder IDs.
+        ids = ['Adult_Test']
+        (train_loader, val_loader, in_test_loader), num_features = get_adult_loaders(
+            args.data_root,
+            batch_size=args.batch_size,
+            domain_shift_gender=args.domain_shift_gender,
+            noise_intensity=args.noise_intensity,
+            device=device
+        )
+        return (train_loader, val_loader, in_test_loader), ids, no_loss_acc, num_features
 
+    # This final return is a fallback, though the logic should always hit one of the branches above.
+    return None, None, None, None
 
 def get_ood_test_loader(args, id):
     """ load out-of-distribution test data and return data loader """
@@ -597,3 +622,98 @@ class PermutedMnistGenerator():
             if val_size > 0:
                 return train_loader, val_loader, test_loader
             return train_loader, test_loader
+
+
+def get_adult_loaders(data_path, batch_size=256, val_size=0.2, domain_shift_gender=None, noise_intensity=0.0,
+                      device='cpu'):
+    """
+    Loads and preprocesses the Adult Income dataset.
+    Handles standard splits, domain shift splits by gender, and adding noise to the test set.
+    """
+    col_names = [
+        'age', 'workclass', 'fnlwgt', 'education', 'education-num',
+        'marital-status', 'occupation', 'relationship', 'race', 'sex',
+        'capital-gain', 'capital-loss', 'hours-per-week', 'native-country', 'income'
+    ]
+
+    # Load data
+    train_df = pd.read_csv(os.path.join(data_path, 'adult.data'), header=None, names=col_names, na_values=' ?',
+                           skipinitialspace=True)
+    test_df = pd.read_csv(os.path.join(data_path, 'adult.test'), header=None, names=col_names, na_values=' ?',
+                          skiprows=1, skipinitialspace=True)
+
+    test_df['income'] = test_df['income'].str.replace(r'\.', '', regex=True)
+    df = pd.concat([train_df, test_df], ignore_index=True)
+
+    # Preprocessing
+    df.dropna(inplace=True)
+    df = df.drop(columns=['fnlwgt', 'education'])
+    df['income'] = df['income'].apply(lambda x: 1 if x == '>50K' else 0)
+
+    # Define feature types - FIX: 'sex' is now treated as a normal categorical feature
+    categorical_features = df.select_dtypes(include=['object']).columns.tolist()
+    numerical_features = df.select_dtypes(include=np.number).drop(columns=['income']).columns.tolist()
+
+    # Create preprocessing pipeline - FIX: No special 'remainder' handling needed
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ('num', StandardScaler(), numerical_features),
+            ('cat', OneHotEncoder(handle_unknown='ignore', sparse_output=False), categorical_features)
+        ])
+
+    # Splitting logic remains the same, works on the original dataframe
+    if domain_shift_gender:
+        if domain_shift_gender == 'male_to_female':
+            train_data_unsplit = df[df['sex'] == 'Male']
+            test_data = df[df['sex'] == 'Female']
+        elif domain_shift_gender == 'female_to_male':
+            train_data_unsplit = df[df['sex'] == 'Female']
+            test_data = df[df['sex'] == 'Male']
+        else:
+            raise ValueError("domain_shift_gender must be 'male_to_female' or 'female_to_male'")
+
+        train_data, val_data = sk_train_test_split(train_data_unsplit, test_size=val_size, random_state=42,
+                                                   stratify=train_data_unsplit['income'])
+    else:  # Standard split
+        train_data_unsplit, test_data = sk_train_test_split(df, test_size=0.2, random_state=42, stratify=df['income'])
+        train_data, val_data = sk_train_test_split(train_data_unsplit, test_size=val_size, random_state=42,
+                                                   stratify=train_data_unsplit['income'])
+
+    # Fit the preprocessor on the training data's features ONLY
+    preprocessor.fit(train_data.drop('income', axis=1))
+
+    # Apply the transformation
+    X_train = preprocessor.transform(train_data.drop('income', axis=1))
+    y_train = train_data['income'].values
+    X_val = preprocessor.transform(val_data.drop('income', axis=1))
+    y_val = val_data['income'].values
+    X_test = preprocessor.transform(test_data.drop('income', axis=1))
+    y_test = test_data['income'].values
+
+    # Add noise to numeric features of the test set if specified
+    if noise_intensity > 0:
+        num_feature_count = len(numerical_features)
+        noise = np.random.normal(0, noise_intensity, X_test[:, :num_feature_count].shape)
+        X_test[:, :num_feature_count] += noise
+
+    # Convert to PyTorch tensors
+    X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+    y_train_tensor = torch.tensor(y_train, dtype=torch.long)
+    X_val_tensor = torch.tensor(X_val, dtype=torch.float32)
+    y_val_tensor = torch.tensor(y_val, dtype=torch.long)
+    X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+    y_test_tensor = torch.tensor(y_test, dtype=torch.long)
+
+    # Create DataLoaders
+    train_dataset = data_utils.TensorDataset(X_train_tensor, y_train_tensor)
+    val_dataset = data_utils.TensorDataset(X_val_tensor, y_val_tensor)
+    test_dataset = data_utils.TensorDataset(X_test_tensor, y_test_tensor)
+
+    train_loader = data_utils.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=0)
+    val_loader = data_utils.DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+    test_loader = data_utils.DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=0)
+
+    num_features = X_train_tensor.shape[1]
+    print(f"Dataset processed. Number of features: {num_features}")
+
+    return (train_loader, val_loader, test_loader), num_features
