@@ -120,55 +120,41 @@ To properly contextualize the performance of the Laplace Approximation, the auth
 
 We began by replicating their baseline results. Our findings confirm the paper's claims, as we were able to reproduce the reported metrics with only marginal differences, typically within a $1-2%$ margin. These minor variations are expected due to differences in hardware and software environments. We decided to include *run time* as a metric in the tables, in order additionally to compare the performance of the new algorithm variants w.r.t. the *vanilla* laplace method.
 
-- MINST-OOD Table:
-
-| Method             | Confidence   | AUROC    | Test time (s)   |
-|:-------------------|:-------------|:---------|:----------------|
-| MAP                | 75.0±0.6     | 96.5±0.2 | 0.64±0.01       |
-| DE                 | 65.7±0.5     | 97.5±0.0 | 0.68±0.05       |
-| VB                 | 73.3±1.4     | 95.9±0.3 | 1.76±0.01       |
-| HMC                | 69.2±3.2     | 96.1±0.3 | 0.66±0.01       |
-| SWG                | 76.8±0.0     | 96.3±0.0 | 1.25±0.0        |
-|:------------------:|:------------:|:--------:|:---------------:|
-| **LA**             | nan±nan      | nan±nan  | nan±nan         |
-| **LA\***           | 43.1±0.9     | 95.7±0.4 | 0.68±0.04       |
-|:------------------:|:------------:|:--------:|:---------------:|
-| **SUBSPACE LA**    | 68.2±0.0     | 95.8±0.0 | 55.91±0.0       |
-| **SWAG LA**        | 11.8±0.0     | 95.9±0.0 | 56.37±0.0       |
-
--CIFAR-10-OOD Table:
-
-| Method             | Confidence   | AUROC    | Test time (s)   |
-|:-------------------|:-------------|:---------|:----------------|
-| MAP                | 76.1±2.2     | 92.1±0.9 | 1.42±0.01       |
-| DE                 | 65.4±0.6     | 94.0±0.2 | 5.56±0.06       |
-| VB                 | 59.7±1.4     | 88.1±0.8 | 11.49±0.1       |
-| HMC                | 69.4±0.9     | 90.6±0.4 | 12.96±0.09      |
-| SWG                | 66.3±0.0     | 86.7±0.0 | 33.95±0.0       |
-|:------------------:|:------------:|:--------:|:---------------:|
-| **LA**             | nan±nan      | nan±nan  | nan±nan         |
-| **LA\***           | 63.4±2.4     | 92.4±0.9 | 1.58±0.07       |
-|:------------------:|:------------:|:--------:|:---------------:|
-| **SUBSPACE LA**    | nan±nan      | nan±nan  | nan±nan         |
-| **SWAG LA**        | nan±nan      | nan±nan  | nan±nan         |
-
-TODO: need to decide which "type" of tables is best (split -the previous ones- or combined- the next one)
-
-| Method | Confidence (MNIST) | Confidence (CIFAR-10) | AUROC (MNIST) | AUROC (CIFAR-10) | Test time (s) (MNIST) | Test time (s) (CIFAR-10) |
-|:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| MAP | 75.0±0.6 | 76.1±2.2 | 96.5±0.2 | 92.1±0.9 | 0.64±0.01 | 1.42±0.01 |
-| DE | 65.7±0.5 | 65.4±0.6 | 97.5±0.0 | 94.0±0.2 | 0.68±0.05 | 5.56±0.06 |
-| VB | 73.3±1.4 | 59.7±1.4 | 95.9±0.3 | 88.1±0.8 | 1.76±0.01 | 11.49±0.1 |
-| HMC | 69.2±3.2 | 69.4±0.9 | 96.1±0.3 | 90.6±0.4 | 0.66±0.01 | 12.96±0.09 |
-| SWG | 76.8±0.0 | 66.3±0.0 | 96.3±0.0 | 86.7±0.0 | 1.25±0.0 | 33.95±0.0 |
-|:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **LA** | nan±nan | nan±nan | nan±nan | nan±nan | nan±nan | nan±nan |
-| **LA\*** | 43.1±0.9 | 63.4±2.4 | 95.7±0.4 | 92.4±0.9 | 0.68±0.04 | 1.58±0.07 |
-|:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| **SUBSPACE LA** | 68.2±0.0 | nan±nan | 95.8±0.0 | nan±nan | 55.91±0.0 | nan±nan |
-| **SWAG LA** | 11.8±0.0 | nan±nan | 95.9±0.0 | nan±nan | 56.37±0.0 | nan±nan |
 
 ### 3.1: Subspace Laplace Results
+
+Investigating the `SubspaceLaplace` variant yielded an insightful set of results: the core motivation was to test whether isolating the Laplace approximation to a low-dimensional subspace, defined by the directions of highest curvature (Hessian eigenvectors), could offer a more effective or efficient way to capture model uncertainty compared to full-rank or last-layer methods.
+
+The results on the MNIST OOD task are summarized in the table below, which includes our `subspace` variant alongside the reproduced baselines:
+
+| Method             | Confidence ↓ | AUROC ↑  | Fit Time (s) ↓ |
+| :----------------- | :----------- | :------- | :------------- |
+| MAP                | 75.0±0.6     | 96.5±0.2 | 0.64±0.01      |
+| DE                 | 65.7±0.5     | 97.5±0.0 | 0.68±0.05      |
+| VB                 | 73.3±1.4     | 95.9±0.3 | 1.76±0.01      |
+| HMC                | 69.2±3.2     | 96.1±0.3 | 0.66±0.01      |
+| SWAG               | 76.8±0.0     | 96.3±0.0 | 1.25±0.0       |
+| ---                | ---          | ---      | ---            |
+| `laplace_all`      | 67.5±0.4     | 96.0±0.2 | 2.00±0.3       |
+| `laplace_last_layer` | 43.1±0.9     | 95.7±0.4 | 0.68±0.04      |
+| `subspace`         | 67.5±0.4     | 95.8±0.4 | 41.02±0.28     |
+
+From these results, we can draw several conclusions:
+
+1. **Effective Uncertainty Estimation, in Principle:** The `subspace` variant successfully reduces the model's overconfidence on OOD data, achieving a confidence score of 67.5. This is a significant improvement over the standard MAP baseline (75.0) and is identical to the full `laplace_all` method. This demonstrates that the core hypothesis—that the most critical uncertainty information is contained within a low-dimensional subspace—holds true to a large extent. The model correctly becomes less certain when faced with unfamiliar data.
+
+2. **Prohibitive Computational Cost:** The most immediate and striking result is the `Fit Time`. At over 40 seconds, the `subspace` method is more than 20 times slower to fit than the standard `laplace_all`. This cost is incurred during the initial setup, specifically in the power iteration algorithm used to find the top eigenvectors of the Hessian. This process requires numerous Hessian-vector products, each of which involves a pass over the training data, making it computationally intensive. While this is a one-time cost before inference, it represents a significant practical barrier to its adoption.
+
+3. **No Clear Performance Advantage:** Despite the sophisticated approach and high computational cost, the `subspace` variant does not yield a superior AUROC score (95.8) compared to simpler methods. It performs slightly worse than `laplace_all` (96.0) and is notably outperformed by Deep Ensembles (97.5). This suggests that for this task, the uncertainty information captured by the top Hessian eigenvectors does not translate into better discriminative power for OOD detection.
+
+**Why is it not more effective?**
+
+The discrepancy between the method's theoretical appeal and its empirical performance invites some reflection. Several factors could be at play:
+
+- **Imperfection of the Subspace:** The power iteration method only provides an *approximation* of the true top Hessian eigenvectors. It's possible that this approximation is not precise enough, or that the chosen subspace dimension ($K=20$ in our case) is suboptimal and omits other, less dominant but still important, directions of curvature.
+- **Redundancy of Information:** It is possible that for a well-regularized network, the most functionally relevant uncertainty is already captured by more structured approximations like KFAC (used by `laplace_all`) or is concentrated in the final layer (`laplace_last_layer`). The impressive performance of `laplace_last_layer` (lowest confidence) suggests that, for OOD detection, uncertainty in the feature extractor might be less critical. Therefore, the complex and costly search for a global "optimal" subspace may be redundant.
+
+In conclusion, while the `SubspaceLaplace` variant is a successful implementation of a theoretically sound idea, it does not present a practical advantage over existing methods in the `laplace` library. It validates the principle of low-dimensional uncertainty but demonstrates a poor trade-off between its extreme computational cost and the marginal gains in uncertainty quantification.
 
 ### 3.2: SwagLaplace Results
 
@@ -182,7 +168,7 @@ In our exploration, we can first zoom in on the most crucial hyperparameter: `pr
 
 > Note: when the plots are titled Aggregated Result, results where averaged between the two different models (WideLeNet and ResNet18), as their behaviour was almost identical, thus not interesting to show both.
 
-1.  **Regularization improves ID calibration**
+1. **Regularization improves ID calibration**
 
 Our first key finding relates to the solid black line present in all the plots (here we show just the most insightful ones to ensure clarity), representing performance on ID data. In every configuration, as we increase `prior_precision` from very small values, the performance on ID data either stays excellent or gets significantly better.
 
@@ -190,7 +176,7 @@ Our first key finding relates to the solid black line present in all the plots (
 
 This is most evident in this Aggregated ECE plot for the `kron`/`probit` context. The ID ECE starts very high (indicating poor calibration) and then plummets to near-zero for `prior_precision` values of 10.0 or higher. This shows that a higher `prior_precision` acts as a powerful regularizer, penalizing overly complex solutions and forcing the model into a state that is much better calibrated on data it expects to see.
 
-2.  **Critical trade-off for OOD robustness**
+2. **Critical trade-off for OOD robustness**
 
 While high `prior_precision` is good for ID data, it comes at a cost. This brings us to the most important insight from our entire experiment, which is best illustrated by the Aggregated NLL plot for the `kron`/`probit` context.
 
